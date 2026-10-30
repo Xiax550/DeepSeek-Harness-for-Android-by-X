@@ -54,6 +54,7 @@ def main() -> None:
     apk_name = f"DHA-{app}-arm64.apk"
     slim_name = f"DHA-{app}-slim.apk"
     hot_name = f"DHA-{app}-hot.zip"
+    release_download = f"{BASE}/releases/download/v{app}"
     manifest = {
         "schema": 2,
         "app": {
@@ -62,12 +63,12 @@ def main() -> None:
             # (devices compare versionCode, so "1.2.0 build 10200 -> 10201" is what makes
             # an in-place asset replacement visible to them).
             "versionCode": int(os.environ.get("APP_CODE") or current["code"]),
-            "url": f"{BASE}/releases/latest/download/{apk_name}",
+            "url": f"{release_download}/{apk_name}",
             # The shell without the runtime: a few megabytes, for phones that
             # already have the terminal — which is every phone after the first
             # install. Same APK, minus assets/payload.zip + payload.manifest.
-            "slim": f"{BASE}/releases/latest/download/{slim_name}",
-            "page": f"{BASE}/releases/latest",
+            "slim": f"{release_download}/{slim_name}",
+            "page": f"{BASE}/releases/tag/v{app}",
         },
         # The sandbox runtime has its own number: it only moves when the rootfs
         # itself changes, which is a different release from a shell change.
@@ -83,7 +84,7 @@ def main() -> None:
         },
         "hot": {
             "version": hot,
-            "url": f"{BASE}/releases/latest/download/{hot_name}",
+            "url": f"{release_download}/{hot_name}",
             "manifest": f"{RAW}/update.json",
         },
     }

@@ -21,7 +21,9 @@
 | 项目源码 | `DHA-<版本>-source.tar.gz` 或 Release 中说明的等价源码归档 |
 | 校验和 | `SHA256SUMS.txt` |
 
-`update.json` 必须指向同一套版本化文件名。CI 不会直接提交受保护的 `main`；
+`update.json` 必须指向同一套版本化文件名，并使用
+`releases/download/v<版本>/...` 固定标签，不能使用 `releases/latest`：
+否则 `t<N>` 运行时发布成为 latest 后，APK 下载会变成 404。CI 不会直接提交受保护的 `main`；
 打标签前必须先把 `VERSION`、`VERSION_CODE` 和 `update.json` 一起提交。
 
 ## 自动补全
