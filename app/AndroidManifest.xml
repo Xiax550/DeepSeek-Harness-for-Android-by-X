@@ -59,6 +59,8 @@
         android:hardwareAccelerated="true"
         android:supportsRtl="false">
 
+        <meta-data android:name="com.dha.harness.AUTHOR" android:value="@string/app_author" />
+
         <activity
             android:name="com.dha.harness.MainActivity"
             android:exported="true"

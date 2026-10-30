@@ -1,4 +1,6 @@
-# DHA · DeepSeek Harness Android
+# DeepSeek Harness for Android by X
+
+**作者及二次开发维护者：夏侯玲文。** 原项目与第三方组件的作者署名继续保留，见 [AUTHORS.md](AUTHORS.md) 和 [NOTICE.md](NOTICE.md)。
 
 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 原样装进安卓手机。
 **界面就是 harness 自己的 Web UI，不是重做的客户端。**

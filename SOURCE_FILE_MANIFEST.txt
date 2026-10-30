@@ -6,6 +6,7 @@
 .github/pull_request_template.md
 .github/workflows/release-full.yml
 .gitignore
+AUTHORS.md
 CHANGELOG.md
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
@@ -109,6 +110,7 @@ docs/FINDINGS.md
 docs/HANDOFF-history.md
 docs/RECOVERY.md
 docs/UPGRADE-DSH.md
+docs/author-attribution-test.mjs
 docs/dsh-pi-ai-media-test.mjs
 docs/images/icon-day.png
 docs/images/icon-night.png

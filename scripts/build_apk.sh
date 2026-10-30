@@ -163,6 +163,7 @@ python3 "$ROOT/scripts/pack_apk.py" "$BUILD/base.apk" "$BUILD/unsigned.apk" \
   "assets/vosk-model-small-cn.zip:$VOICE_MODEL" \
   $ASSETS \
   "assets/licenses/LICENSE:$ROOT/LICENSE" \
+  "assets/licenses/AUTHORS.md:$ROOT/AUTHORS.md" \
   "assets/licenses/NOTICE.md:$ROOT/NOTICE.md" \
   "assets/licenses/THIRD_PARTY.md:$ROOT/THIRD_PARTY.md" \
   "assets/licenses/OPEN_SOURCE_COMPLIANCE.md:$ROOT/OPEN_SOURCE_COMPLIANCE.md" \

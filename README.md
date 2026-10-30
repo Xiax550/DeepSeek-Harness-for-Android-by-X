@@ -1,5 +1,7 @@
 # DeepSeek Harness for Android by X
 
+Author and maintainer of this DHA fork: **夏侯玲文**. Upstream and third-party authors retain their attribution; see [AUTHORS.md](AUTHORS.md) and [NOTICE.md](NOTICE.md).
+
 DHA is an unofficial Android distribution of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 It runs a Linux userspace inside an Android application and exposes the Harness web UI through WebView.
 

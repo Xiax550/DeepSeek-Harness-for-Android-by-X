@@ -225,7 +225,7 @@ Invoke-Native -Exe $Python -NativeArgs @(
 Copy-Item $hotGenerated (Join-Path $Build 'hot-assets\hot.zip') -Force
 $assets += "assets/hot.zip:$(Join-Path $Build 'hot-assets\hot.zip')"
 $assets += "assets/vosk-model-small-cn.zip:$VoiceModel"
-foreach ($legalName in @('LICENSE', 'NOTICE.md', 'THIRD_PARTY.md', 'OPEN_SOURCE_COMPLIANCE.md')) {
+foreach ($legalName in @('LICENSE', 'AUTHORS.md', 'NOTICE.md', 'THIRD_PARTY.md', 'OPEN_SOURCE_COMPLIANCE.md')) {
     $legalPath = Join-Path $Root $legalName
     Assert-File $legalPath $legalName
     $assets += "assets/licenses/$legalName`:$legalPath"

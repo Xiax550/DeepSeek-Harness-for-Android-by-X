@@ -1,5 +1,7 @@
 # 来源与二次开发声明
 
+本 DHA 分支的作者及二次开发维护者：**夏侯玲文**。该署名不替代上游作者或第三方组件的版权与许可声明，详见 `AUTHORS.md`。
+
 ## 1. 本工程来源
 
 **DHA**（DeepSeek Harness Android，`com.dha.harness`）是一个把 **DeepSeek Harness 原样**装进安卓手机的
@@ -34,6 +36,7 @@
 ```text
 Copyright (c) 2026 itiswdwa
 Copyright (c) 2026 LanFeiYu (蓝肥鱼) modifications
+Copyright (c) 2026 夏侯玲文, DHA modifications
 ```
 
 请勿删除上游那一行。

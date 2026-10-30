@@ -27,6 +27,7 @@ window.__ModuleLoader__.load({
 			nav: "沙箱设置",
 			navBall: "悬浮球",
 			navVersion: "版本更新",
+			author: "作者：夏侯玲文",
 			ballTitle: "悬浮球外观",
 			ballRunning: "运行中",
 			ballStopped: "已关闭",
@@ -246,6 +247,7 @@ window.__ModuleLoader__.load({
 			nav: "Sandbox",
 			navBall: "Floating ball",
 			navVersion: "Version and updates",
+			author: "Author: 夏侯玲文",
 			ballTitle: "Floating ball appearance",
 			ballRunning: "Running",
 			ballStopped: "Off",
@@ -3205,7 +3207,8 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 						+ "/" + String(snapshot.hotVersion || snapshot.packagedHotVersion || "")
 				}, t("verLine")
 					.replace("%s", String(snapshot.hotVersion || snapshot.packagedHotVersion || "-"))
-					.replace("%s", hotState)),
+					.replace("%s", hotState), h("br"),
+					h("span", { "data-dha-author": true }, t("author"))),
 
 				h(Group, { key: "status", title: t("status") },
 					h(StatusCard, { status: snapshot.status, t, act, message })),

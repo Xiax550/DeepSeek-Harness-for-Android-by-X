@@ -2,6 +2,7 @@
 <resources>
     <!-- Launcher label only. Nothing in the UI draws an app title bar, by design. -->
     <string name="app_name">DHA</string>
+    <string name="app_author">夏侯玲文</string>
 
     <!-- 无障碍服务：系统「设置 → 无障碍」里显示的名字与说明 -->
     <string name="a11y_label">DHA 手机助手</string>

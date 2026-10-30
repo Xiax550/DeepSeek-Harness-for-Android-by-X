@@ -349,6 +349,10 @@ public final class Panel {
             refresh();
         }));
 
+        body.addView(section("关于 DHA"));
+        body.addView(hint("作者：" + ctx.getString(R.string.app_author)));
+        body.addView(hint("基于 dsh-android 与 DeepSeek Harness；第三方组件保留各自署名和许可证。"));
+
         view = column;
     }
 
