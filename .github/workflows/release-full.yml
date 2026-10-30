@@ -138,7 +138,7 @@ jobs:
           }
 
       - name: 缓存 rootfs（省掉每次约 10 分钟的下载 + npm i）
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build/rootfs-ubuntu
           # Keyed on the overlay inputs as well, not just the two scripts that
