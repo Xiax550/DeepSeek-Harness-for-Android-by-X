@@ -65,11 +65,8 @@ echo "   正文段落 $(wc -c < "$NOTES") 字节"
 
 echo "== 3/5 定位 release =="
 RELEASE_JSON="$BUILD/release.json"
-if [ -n "${DSH_RELEASE_TAG:-}" ]; then
-  curl -fsS -H "$AUTH" -H "$ACCEPT" "$API/releases/tags/$DSH_RELEASE_TAG" -o "$RELEASE_JSON"
-else
-  curl -fsS -H "$AUTH" -H "$ACCEPT" "$API/releases/latest" -o "$RELEASE_JSON"
-fi
+TARGET_TAG="${DSH_RELEASE_TAG:-v$APP_VERSION}"
+curl -fsS -H "$AUTH" -H "$ACCEPT" "$API/releases/tags/$TARGET_TAG" -o "$RELEASE_JSON"
 python3 -c '
 import json, sys
 data = json.load(open(sys.argv[1]))

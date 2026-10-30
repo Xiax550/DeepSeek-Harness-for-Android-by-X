@@ -92,6 +92,20 @@ def main() -> int:
         print(f"PASS release.sh contains: {needle}")
         checks += 1
 
+    release_hot = (ROOT / "scripts/release_hot.sh").read_text(encoding="utf-8")
+    if "$API/releases/latest" in release_hot:
+        raise SystemExit("release_hot.sh must target v<app>, not releases/latest")
+    if "${DSH_RELEASE_TAG:-v$APP_VERSION}" not in release_hot:
+        raise SystemExit("release_hot.sh does not default to the app release tag")
+    print("PASS release_hot targets v<app>, never runtime latest")
+    checks += 1
+
+    generator = (ROOT / "scripts/make_update_manifest.py").read_text(encoding="utf-8")
+    if "/releases/latest/" in generator:
+        raise SystemExit("update manifest generator still uses releases/latest")
+    print("PASS update manifest uses version-pinned release URLs")
+    checks += 1
+
     print(f"release-config: {checks} checks, 0 failure(s)")
     return 0
 

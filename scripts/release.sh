@@ -6,8 +6,8 @@
 # script never prints it and never writes it anywhere.
 #
 # The asset names matter: update.json points at versioned files such as
-#   releases/latest/download/DHA-1.2.50-arm64.apk
-#   releases/latest/download/DHA-1.2.50-hot.zip
+#   releases/download/v1.2.50/DHA-1.2.50-arm64.apk
+#   releases/download/v1.2.50/DHA-1.2.50-hot.zip
 # so renaming them would break in-app updates.
 #
 # Reentrant on purpose: a run that dies between creating the release and
