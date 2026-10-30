@@ -99,7 +99,7 @@ jobs:
           java-version: "17"
 
       - name: Node（与载荷里那份同版本）
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           # prepare_rootfs.sh runs `npm i` with the *host's* npm and only pins the
           # platform flags; the tree it resolves therefore depends on the runner's
