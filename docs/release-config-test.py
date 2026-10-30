@@ -72,7 +72,7 @@ def main() -> int:
         checks += 1
     if "keystore/dsh.p12" in workflow:
         raise SystemExit("release workflow still references the wrong keystore name")
-    for action in ("actions/checkout@v7", "actions/setup-node@v7",
+    for action in ("actions/checkout@v7", "actions/setup-java@v6", "actions/setup-node@v7",
                    "actions/cache@v6", "android-actions/setup-android@v4",
                    "docker/setup-qemu-action@v4"):
         if action not in workflow:

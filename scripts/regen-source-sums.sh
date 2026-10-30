@@ -31,6 +31,7 @@ trap 'rm -f "$work"' EXIT
 git ls-files -z | while IFS= read -r -d '' path; do
   # 清单自己不进清单，否则无法自洽
   [ "$path" = "$OUT" ] && continue
+  [ "$path" = "SOURCE_FILE_MANIFEST.txt" ] && continue
   hash="$(git show ":$path" | sha256sum | cut -d' ' -f1)"
   printf '%s  %s\n' "$hash" "$path"
 done > "$work"
@@ -49,7 +50,7 @@ if [ "$MODE" = "--check" ]; then
     # 只打印差异路径，避免刷屏
     diff <(awk '{print $2}' "$OUT" | sort) <(awk '{print $2}' "$work" | sort) || true
     echo "内容不符的条目数目：$(diff "$work" "$OUT" | grep -c '^<' || true)"
-    echo "跑 sh scripts/regen-source-sums.sh 重新生成"
+    echo "跑 bash scripts/regen-source-sums.sh 重新生成"
     exit 1
   fi
   exit 0
