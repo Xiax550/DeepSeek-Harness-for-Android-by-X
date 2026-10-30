@@ -47,6 +47,8 @@ def main() -> int:
         url = manifest[section][field]
         if not url.endswith(name):
             raise SystemExit(f"update.json {section}.{field} does not end with {name}: {url}")
+        if f"/download/v{version}/" not in url:
+            raise SystemExit(f"update.json {section}.{field} is not pinned to v{version}: {url}")
         print(f"PASS update.json {section}.{field}: {name}")
         checks += 1
 

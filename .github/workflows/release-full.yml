@@ -284,13 +284,13 @@ jobs:
         run: |
           set -eu
           API="https://api.github.com/repos/${{ github.repository }}"
-          curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$API/releases/latest" \
+          curl -fS -H "Authorization: Bearer $GITHUB_TOKEN" "$API/releases/tags/$TAG" \
             | python3 -c 'import json,sys; d=json.load(sys.stdin); print("latest:", d["tag_name"]); [print(" ", a["name"], a["size"]) for a in d["assets"]]'
           version="${TAG#v}"
           for n in "DHA-${version}-arm64.apk" "DHA-${version}-slim.apk" \
                    "DHA-${version}-hot.zip" SHA256SUMS.txt; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' -L \
-              "https://github.com/${{ github.repository }}/releases/latest/download/$n")
+              "https://github.com/${{ github.repository }}/releases/download/$TAG/$n")
             echo "$n -> HTTP $code"
             [ "$code" = "200" ]
           done
