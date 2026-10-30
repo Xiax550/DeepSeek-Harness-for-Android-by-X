@@ -1,0 +1,261 @@
+package com.dha.harness;
+
+import android.content.SharedPreferences;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * User-defined bind mounts: a folder on the phone, a path inside the sandbox.
+ *
+ * The sandbox already gets /sdcard, but that is one fixed window onto the
+ * device. Mounts let the user open a specific folder — a project directory, a
+ * synced notes folder, a USB drive — at a stable guest path, so both the agent
+ * and the terminal can reach it without copying anything.
+ *
+ * Entries are stored as a JSON array in preferences. Bind mounts are applied
+ * when PRoot starts, so adding one requires a server restart; the UI says so.
+ */
+public final class Mounts {
+
+    public static final class Mount {
+        public final String id;
+        public final String host;
+        public final String guest;
+        public final boolean enabled;
+
+        Mount(String id, String host, String guest, boolean enabled) {
+            this.id = id;
+            this.host = host;
+            this.guest = guest;
+            this.enabled = enabled;
+        }
+
+        public JSONObject toJson() {
+            JSONObject object = new JSONObject();
+            try {
+                File source = new File(host);
+                object.put("id", id);
+                object.put("host", host);
+                object.put("guest", guest);
+                object.put("enabled", enabled);
+                object.put("exists", source.isDirectory());
+                object.put("readable", source.isDirectory() && source.canRead());
+                object.put("problem", problem());
+            } catch (Throwable ignored) {
+            }
+            return object;
+        }
+
+        /**
+         * Why this mount will not show anything, in the user's terms.
+         *
+         * Silence was the original bug here: a path the app cannot stat was
+         * dropped from the PRoot command line, and the guest simply showed an
+         * empty directory with nothing anywhere to explain it.
+         */
+        public String problem() {
+            File source = new File(host);
+            if (!source.isDirectory()) {
+                return "路径不存在或不可访问（可能没授予存储权限）";
+            }
+            if (!source.canRead()) {
+                return "应用没有读取权限";
+            }
+            if (host.contains("/Android/data/") || host.contains("/Android/obb/")) {
+                return "Android 11+ 不允许应用访问 Android/data 与 Android/obb";
+            }
+            if (host.startsWith("/storage/") && !host.startsWith("/storage/emulated/0")
+                    && !host.startsWith("/storage/self/")) {
+                return "可移动存储（SD 卡/U 盘）需要额外授权，建议先拷到内部存储";
+            }
+            return "";
+        }
+    }
+
+    private static final String KEY = "mounts";
+
+    private Mounts() {
+    }
+
+    public static List<Mount> list() {
+        List<Mount> out = new ArrayList<>();
+        String raw = App.i().prefs.getString(KEY, "[]");
+        try {
+            JSONArray array = new JSONArray(raw);
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject item = array.getJSONObject(i);
+                out.add(new Mount(item.optString("id", "m" + i),
+                        item.optString("host", ""),
+                        item.optString("guest", ""),
+                        item.optBoolean("enabled", true)));
+            }
+        } catch (Throwable error) {
+            App.log("mounts: unreadable list, starting empty: " + error);
+        }
+        return out;
+    }
+
+    private static void save(List<Mount> mounts) {
+        JSONArray array = new JSONArray();
+        for (Mount mount : mounts) {
+            JSONObject item = new JSONObject();
+            try {
+                item.put("id", mount.id);
+                item.put("host", mount.host);
+                item.put("guest", mount.guest);
+                item.put("enabled", mount.enabled);
+            } catch (Throwable ignored) {
+            }
+            array.put(item);
+        }
+        SharedPreferences.Editor editor = App.i().prefs.edit();
+        editor.putString(KEY, array.toString());
+        // A mount edit immediately restarts the sandbox. apply() could still be
+        // queued when that process is replaced, losing the just-added mount.
+        if (!editor.commit()) App.log("mounts: failed to persist mount list");
+    }
+
+    /** Path inside the guest that a host folder gets by default. */
+    public static String defaultGuestPath(String host) {
+        return MountPath.defaultGuestPath(host);
+    }
+
+    public static synchronized Mount add(String host, String guest) {
+        List<Mount> mounts = list();
+        String cleanHost = host == null ? "" : host.trim();
+        if (cleanHost.isEmpty()) throw new IllegalArgumentException("挂载路径为空");
+        File source = new File(cleanHost);
+        if (!source.isDirectory()) {
+            throw new IllegalArgumentException("文件夹不存在或应用无法访问：" + cleanHost);
+        }
+        if (!source.canRead()) {
+            throw new IllegalArgumentException("应用没有读取此文件夹的权限");
+        }
+        if (cleanHost.contains("/Android/data/") || cleanHost.contains("/Android/obb/")) {
+            throw new IllegalArgumentException("Android 11+ 不允许挂载 Android/data 或 Android/obb");
+        }
+        String cleanGuest = MountPath.normalizeGuest(
+                guest == null || guest.trim().isEmpty()
+                        ? defaultGuestPath(cleanHost)
+                        : guest);
+        if (!MountPath.safeGuest(cleanGuest)) {
+            throw new IllegalArgumentException("沙箱路径不安全或属于系统保留目录：" + cleanGuest);
+        }
+        // Same folder twice is almost always a mistake, not a request.
+        for (Mount existing : mounts) {
+            if (existing.host.equals(cleanHost)) {
+                if (!existing.enabled) {
+                    Mount enabled = new Mount(existing.id, existing.host, existing.guest, true);
+                    List<Mount> updated = new ArrayList<>();
+                    for (Mount mount : mounts) {
+                        updated.add(mount.id.equals(existing.id) ? enabled : mount);
+                    }
+                    save(updated);
+                    return enabled;
+                }
+                return existing;
+            }
+            if (MountPath.normalizeGuest(existing.guest).equals(cleanGuest)) {
+                throw new IllegalArgumentException("沙箱路径已被另一条挂载占用：" + cleanGuest);
+            }
+        }
+        Mount mount = new Mount("m" + System.currentTimeMillis(), cleanHost, cleanGuest, true);
+        mounts.add(mount);
+        save(mounts);
+        App.log("mount added: " + cleanHost + " -> " + cleanGuest);
+        return mount;
+    }
+
+    public static synchronized void remove(String id) {
+        List<Mount> mounts = list();
+        List<Mount> kept = new ArrayList<>();
+        for (Mount mount : mounts) {
+            if (!mount.id.equals(id)) kept.add(mount);
+        }
+        save(kept);
+    }
+
+    public static synchronized void setEnabled(String id, boolean enabled) {
+        List<Mount> mounts = list();
+        List<Mount> updated = new ArrayList<>();
+        for (Mount mount : mounts) {
+            updated.add(mount.id.equals(id)
+                    ? new Mount(mount.id, mount.host, mount.guest, enabled)
+                    : mount);
+        }
+        save(updated);
+    }
+
+    public static synchronized void setGuestPath(String id, String guest) {
+        List<Mount> mounts = list();
+        List<Mount> updated = new ArrayList<>();
+        for (Mount mount : mounts) {
+            updated.add(mount.id.equals(id)
+                    ? new Mount(mount.id, mount.host, guest == null || guest.trim().isEmpty()
+                    ? mount.guest : guest.trim(), mount.enabled)
+                    : mount);
+        }
+        save(updated);
+    }
+
+    /**
+     * Mounts that can actually be bound, i.e. whose source path exists.
+     *
+     * Two different failures, two different answers, and getting them mixed up
+     * cost a boot:
+     *
+     *   missing source   PRoot's -b is fatal on a path it cannot find, so this
+     *                    must be filtered out — but never silently (see
+     *                    {@link Mount#problem()} and the settings page, which
+     *                    say which path and why).
+     *   present but
+     *   unreadable       bind anyway: the guest gets an empty directory, which
+     *                    is diagnosable, instead of the whole sandbox failing.
+     */
+    public static List<Mount> enabled() {
+        List<Mount> out = new ArrayList<>();
+        for (Mount mount : list()) {
+            if (mount.enabled && new File(mount.host).isDirectory()
+                    && mount.problem().isEmpty()
+                    && MountPath.safeGuest(mount.guest)) {
+                out.add(mount);
+            }
+        }
+        return out;
+    }
+
+    /** Every mount the user turned on, bindable or not, for reporting. */
+    public static List<Mount> configured() {
+        List<Mount> out = new ArrayList<>();
+        for (Mount mount : list()) {
+            if (mount.enabled) out.add(mount);
+        }
+        return out;
+    }
+
+    /**
+     * Create each bind target inside the rootfs before PRoot starts.
+     *
+     * PRoot binds over an existing path, so a guest path that does not exist yet
+     * would make the whole invocation fail — and the failure would look like a
+     * mount problem rather than a missing directory.
+     */
+    public static void ensureGuestDirs(File rootfs) {
+        for (Mount mount : enabled()) {
+            String guest = MountPath.normalizeGuest(mount.guest);
+            if (!MountPath.safeGuest(guest)) {
+                App.log("mounts: ignoring unsafe guest path " + guest);
+                continue;
+            }
+            File target = new File(rootfs, guest.substring(1));
+            if (!target.isDirectory() && !target.mkdirs() && !target.isDirectory()) {
+                App.log("mounts: cannot create " + target);
+            }
+        }
+    }
+}

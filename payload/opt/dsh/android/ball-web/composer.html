@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>DSH 悬浮球</title>
+<style>
+:root{--surface:rgba(13,15,19,.68);--hairline:rgba(255,255,255,.20);--ink:#fff;--size:58px;
+  --input-height:58px;--control-size:50px;
+  /* One shadow entry per state, in the same order, so the two states interpolate.
+     Order: drop shadow, tighter second shadow, inner bottom shade, top highlight.
+     The window is exactly the ball's square when closed, so an OUTER shadow has
+     no room at the four points where the circle touches the window: measured on
+     the device it left a dark sliver cut off at the window edge (189 vs 250).
+     Closed therefore uses the inset shade only; open has 8 dp of headroom above
+     and below the capsule, and 10 px of blur stays inside it. */
+  --shadow-rest:0 0 0 0 rgba(0,0,0,0),0 0 0 0 rgba(0,0,0,0),inset 0 -5px 10px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.09);
+  --shadow-open:0 3px 10px rgba(0,0,0,.20),0 1px 3px rgba(0,0,0,.14),inset 0 0 0 0 rgba(0,0,0,0),inset 0 1px 0 rgba(255,255,255,.08);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif}
+*{box-sizing:border-box}
+/* ONE page, ONE capsule, ONE window.
+ *
+ * This page is the whole ball and the whole typing bar. The app's window is the
+ * ball's square while closed and the bar's rect while open, and the app animates
+ * that window frame by frame; this page only ever fills it. Nothing here draws a
+ * second capsule, so nothing here can cover the morph from another window.
+ *
+ * Capsule geometry: it spans the window's full width and is exactly `--size`
+ * tall, centred in the window. Closed (window == ball) it therefore IS the ball;
+ * open (window == size + 16 dp tall) the capsule sits on the ball's own vertical
+ * centre with 8 dp of window above and below it. One rule, both states.
+ */
+html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden;font-family:var(--font);
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#bar{position:absolute;left:0;right:0;top:calc(50% - var(--size) / 2);height:var(--size);
+  display:flex;align-items:center;border:1px solid var(--hairline);border-radius:999px;
+  background:var(--surface);overflow:hidden;
+  box-shadow:var(--shadow-rest);transition:background-color .18s ease,border-color .18s ease,box-shadow .35s ease}
+/* The idle ball is only the blue-fish mark: no disc, outline or square canvas. */
+#bar.ball{background:transparent;border:0;box-shadow:none}
+#bar.ball #whale{filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
+#bar.ball.spinning,#bar.ball.watch-on{background:transparent;border:0;outline:0;box-shadow:none}
+#bar.ball #ring{filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
+/* The character, not its window, does the living. It floats, leans and takes
+   small breaths while the whole ball remains free for the native press/release
+   scale. Every frame stays inside the square because the window clips it. */
+#bar.spinning #whale{animation:fishThink .9s ease-in-out infinite}
+@keyframes fishThink{
+  0%,100%{transform:translateY(1px) rotate(-2deg)}
+  50%{transform:translateY(-3px) rotate(2deg)}
+}
+#bar.full{box-shadow:var(--shadow-open)}
+#bar.full{top:0!important;height:100%!important;display:block;background:transparent;
+  border-color:transparent;box-shadow:none;overflow:visible}
+#bar.full #cap{position:absolute;bottom:0;left:0}
+#bar.mirror.full #cap{right:0;left:auto}
+#bar.full #whale{filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
+/* The bubble: THIS window, stretched off the ball. Same capsule, same skin, the
+   ball's own height; only the width comes from the text. The text block keeps the
+   width it was measured at while the window grows, so the line is revealed
+   instead of re-wrapping on every frame of the morph. */
+#bar.bubble{top:0;height:100%;gap:8px;background:transparent;border-color:transparent;box-shadow:none;overflow:visible}
+/* The whale stays: it is the capsule's starting end, exactly the square it
+   occupied while the ball was closed, so expanding the ball into the bubble
+   leaves it where it was. Only the typing bar's controls go away. */
+#bar.bubble #send,#bar.bubble #close,#bar.bubble #watch,#bar.bubble #field{display:none}
+/* The phase marker rides on the whale's corner instead of taking a slot of its
+   own: the spinning ◐ for work, ✓ for done, … while thinking, nothing for a
+   plain line. */
+#badge{position:absolute;right:6px;bottom:6px;width:12px;height:12px;display:none;
+  box-sizing:border-box;border-radius:50%;place-items:center;background:var(--surface);
+  box-shadow:0 0 0 1px rgba(255,255,255,.14),0 1px 2px rgba(0,0,0,.5);
+  color:var(--ink);font:600 9px/1 var(--font);text-align:center;
+  text-shadow:none;pointer-events:none}
+/* A finished ✓ badge belongs to the opened bubble. The activity ring is the
+   exception: when the app is thinking or observing, it remains visible on the
+   closed ball as well. These rules are state-driven so a stale badge cannot be
+   left clipped in the ball's corner. */
+#bar.ball #badge{display:none}
+#bar.ball #ring{display:none}
+#bar.ball.spinning #ring,#bar.ball.watch-on #ring{display:block}
+#bar.watch-on #ring{display:block!important;opacity:1!important;
+  border-top-color:#7bd8ff;animation:spin 1.1s linear infinite!important}
+/* The loading mark sits inside the upper-right edge of the doll's head.
+   Drawn as a plain HTML element with a border (the classic CSS spinner) rather
+   than an SVG arc: Android's WebView rotates a bordered div with a composited
+   transform on every device, while CSS transforms on SVG children and
+   stroke-dasharray animation are the ones that silently do nothing there.
+   14 px across, 2 px stroke, one turn per 1.1 s. The z-index is essential: the
+   SVG character occupies its own stacking layer and would otherwise cover the
+   right half of the ring. */
+#ring{position:absolute;right:7px;top:8px;width:14px;height:14px;margin:0;
+  box-sizing:border-box;display:none;border-radius:50%;z-index:5;
+  border:2px solid rgba(94,202,255,.34);border-top-color:#8fe2ff;
+  border-right-color:rgba(143,226,255,.82);
+  pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45))}
+#bar.bubble:not(.mirror) #ring{left:calc(var(--size) - 21px);right:auto}
+#bar.bubble.mirror #ring{right:calc(var(--size) - 21px);left:auto}
+#bar.spinning #ring{display:block;animation:spin 1.1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+/* Reduced motion: the ring is there, it just does not turn. */
+@media (prefers-reduced-motion:reduce){
+  #bar.spinning #ring{animation:none}
+  #cooDoll{transition:none}
+}
+/* 6 dp above and below the text: a two-line line no longer sits flush against the
+   capsule's edges, and the whale (centred, unchanged) keeps its own square. */
+/* The user's own ball settings, applied by ComposerUI.settings() below. Text height
+   follows the line count instead of the hardcoded 3; nothing here changes display, so
+   the bubble's flex layout is untouched. */
+  body.no-status #bubbleText{display:none!important}
+  body.no-ring #ring{display:none!important}
+  body.no-ring #bar.spinning #ring{display:none!important}
+  #bubbleText{max-height:calc(var(--lines, 3) * 20px + 18px)}
+   #bubbleText{display:none;position:relative;flex:0 1 auto;width:max-content;min-width:52px;
+   max-width:360px;padding:8px 12px;color:#202124;background:rgba(255,255,255,.97);
+   border:1px solid rgba(0,0,0,.10);border-radius:12px;
+   box-shadow:0 3px 12px rgba(0,0,0,.28);font:500 14px/20px var(--font);
+   text-align:center;white-space:normal;word-break:break-word;overflow-wrap:anywhere;
+   max-height:100%;overflow-x:hidden;overflow-y:auto}
+   #bubbleText::after{content:"";position:absolute;bottom:8px;width:10px;height:10px;
+   background:rgba(255,255,255,.97);transform:rotate(45deg);z-index:-1}
+   #bar:not(.mirror).bubble #bubbleText::after{left:-5px}
+   #bar.mirror.bubble #bubbleText::after{right:-5px}
+    #bubbleText.result{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+    #bar.bubble #bubbleText{display:block}
+    /* Thinking is a lightweight status, not a card. Its text stays readable on
+       any app through a shadow, but the capsule, tail and close-button plate use
+       no background at all. Work, done and result bubbles keep their surface. */
+    #bar.bubble.thinking #bubbleText{background:transparent;border-color:transparent;box-shadow:none;
+      color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.85)}
+    #bar.bubble.thinking #bubbleText::after{display:none}
+    #bar.bubble.thinking #bubbleDismiss{background:transparent;box-shadow:none;color:#fff;
+      text-shadow:0 1px 3px rgba(0,0,0,.95)}
+/* The fish is the video's visual anchor; the small × makes dismissal visible.
+   Native touch handling owns the hit target, so this stays pointer-transparent
+   while remaining a stable visual affordance in the WebView. */
+#bubbleDismiss{display:none;position:absolute;top:5px;right:5px;z-index:4;
+  width:24px;height:24px;place-items:center;border:0;border-radius:50%;
+  background:rgba(32,33,36,.13);color:#343840;font:600 18px/1 var(--font);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.55);pointer-events:none}
+#bar.bubble #bubbleDismiss{display:grid}
+#bar.mirror.bubble #bubbleDismiss{right:calc(var(--size) + 13px);left:auto}
+#bar.bubble #bubbleText{padding-right:34px}
+#bubbleText{overscroll-behavior:contain;touch-action:pan-y}
+/* Off-screen twin of that text: a bubble starts while the window is still the
+   ball, so its width has to be measurable before the window has grown. */
+#measure{position:absolute;left:-10000px;top:0;visibility:hidden;width:max-content;
+  font:500 14px/20px var(--font);padding:8px 12px;border:1px solid transparent;
+  text-align:left;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
+/* side="right": the ball's right edge is the window's right edge, so the whale
+   and the buttons swap ends and the capsule still grows out of the ball. */
+#bar.mirror{flex-direction:row-reverse}
+#cap{position:relative;flex:none;width:var(--size);height:var(--size);display:grid;place-items:center;
+  background:transparent;border:0;border-radius:0;overflow:visible;
+  transform-origin:50% 80%;transition:transform .12s ease}
+#bar.ball.pressed #cap{transform:scale(.91)}
+#bar.morphing #cap{transition:none;animation:none!important;transform:none!important}
+#whale,#legacyWhale,#plane{position:absolute;display:block}
+#legacyWhale{display:none}
+#whale{width:88%;height:88%;object-fit:contain;background:transparent;
+  border:0;border-radius:0;clip-path:none;overflow:visible;z-index:1}
+#cooDoll{display:none;position:absolute;width:96%;height:96%;overflow:visible;z-index:2;
+  transition:none}
+#bar.coo-ready #whale{display:none}
+#bar.coo-ready #cooDoll{display:block}
+#inputPill{display:none;position:absolute;left:0;right:0;top:0!important;
+  height:var(--input-height);align-items:center;gap:2px;
+  border:1px solid var(--hairline);border-radius:999px;
+  background:var(--surface);box-shadow:var(--shadow-open);overflow:hidden;
+  opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;
+  transition:opacity .16s ease,transform .2s cubic-bezier(.2,.9,.3,1)}
+#bar.full #inputPill{display:flex}
+#bar.open #inputPill{opacity:1;transform:none;pointer-events:auto}
+#inputPill{flex-direction:row-reverse}
+#bar.mirror #inputPill{flex-direction:row}
+#plane{width:46%;height:46%;opacity:0}
+#field{flex:1 1 auto;min-width:0;height:100%;display:flex;align-items:center}
+#text{flex:1 1 auto;min-width:0;height:100%;margin:0;border:0;outline:0;background:transparent;color:var(--ink);
+  caret-color:var(--ink);font:400 14px/1 var(--font);padding:0 7px 0 4px;-webkit-appearance:none;appearance:none}
+#text::placeholder{color:rgba(255,255,255,.45)}
+#bar.mirror #text{text-align:right}
+#send,#close,#watch{flex:none;display:grid;place-items:center;margin:0;padding:0;border:0;background:transparent;
+  color:var(--ink);-webkit-appearance:none;appearance:none;cursor:pointer}
+#send{width:var(--control-size);height:100%}
+#send svg{width:46%;height:46%;display:block;pointer-events:none}
+#close{width:calc(var(--control-size) - 12px);height:100%;color:rgba(255,255,255,.45)}
+#close svg{width:40%;height:40%;display:block;pointer-events:none}
+#watch{display:none;position:relative;width:40px;height:100%;color:rgba(255,255,255,.58)}
+#bar.watchable #watch{display:grid}
+#bar.bubble #watch{display:none}
+#watch svg{width:50%;height:50%;display:block;pointer-events:none}
+#bar.mirror #watch{order:-1}
+#watch.on{color:#7bd8ff;background:rgba(72,179,235,.18);border-radius:999px}
+#watch.on::after{content:"";position:absolute;right:7px;top:9px;width:5px;height:5px;border-radius:50%;
+  background:#7bd8ff;box-shadow:0 0 0 2px rgba(72,179,235,.20)}
+#send:active,#close:active,#watch:active{background:rgba(255,255,255,.12);border-radius:999px}
+#close:active{color:#fff}
+/* Closed: only the whale. Open: the field and ✕ fade in. The plane that flew in
+   lands on the ball's own square and BECOMES the send button: `landed` drops the
+   cap and gives #send its place — both are exactly `--size` at the same spot, so
+   the swap is invisible and there is never a second paper plane on screen.
+   #send therefore has to switch instantly (no fade): a fade would leave the
+   landed plane and the button's plane on screen together for 160 ms. */
+#field,#close,#watch{opacity:0;pointer-events:none;transition:opacity .16s ease}
+#send{opacity:0;pointer-events:none;transition:none}
+#bar.open #field,#bar.open #close,#bar.open #watch{opacity:1;pointer-events:auto}
+#bar.full #send{opacity:1;pointer-events:none}
+#bar.full.open #send{pointer-events:auto}
+/* Listening: an inset ring, not an outer one — an outer glow would be cut off by
+   the window the capsule exactly fills. */
+#bar.listening::after{content:"";position:absolute;left:0;top:0;right:0;bottom:0;border-radius:999px;
+  pointer-events:none;box-shadow:inset 0 0 0 0 rgba(255,255,255,.45);animation:pulse 1.4s ease-out infinite}
+@keyframes pulse{0%{box-shadow:inset 0 0 0 0 rgba(255,255,255,.45)}70%{box-shadow:inset 0 0 0 12px rgba(255,255,255,0)}100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}}
+@media (prefers-reduced-motion:reduce){
+  #bar.listening::after{animation:none}
+  #cooDoll{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="bar" class="ball">
+  <div id="cap">
+    <div id="badge" aria-hidden="true"></div>
+    <div id="ring" aria-hidden="true"></div>
+    <canvas id="whale" width="256" height="256" aria-hidden="true"></canvas>
+    <svg id="cooDoll" viewBox="-12 -8 280 280" aria-hidden="true">
+      <g id="cooMirror"><g id="cooRoot"></g></g>
+    </svg>
+    <svg id="legacyWhale" viewBox="0 0 108 108" aria-hidden="true">
+                <g transform="translate(25.92,25.92) scale(1.1232)">
+                  <path fill="#fff" fill-rule="nonzero" d="M48.8354 10.0479C48.3232 9.79199 48.1025 10.2798 47.8032 10.5278C47.7007 10.6079 47.6143 10.7119 47.5273 10.8076C46.7793 11.624 45.9048 12.1597 44.7622 12.0957C43.0923 12 41.666 12.5356 40.4058 13.8398C40.1377 12.2319 39.2476 11.272 37.8926 10.6558C37.1836 10.3359 36.4668 10.0156 35.9702 9.31982C35.6235 8.82373 35.5293 8.27197 35.356 7.72754C35.2456 7.3999 35.1353 7.06396 34.7651 7.00781C34.3633 6.94385 34.2056 7.2876 34.0479 7.57568C33.418 8.75195 33.1733 10.0479 33.1973 11.3599C33.2524 14.312 34.4736 16.6641 36.8999 18.3359C37.1758 18.5278 37.2466 18.7197 37.1597 19C36.9946 19.5757 36.7974 20.1357 36.624 20.7119C36.5137 21.0801 36.3486 21.1597 35.9624 21C34.6309 20.4321 33.481 19.5918 32.4644 18.5757C30.7393 16.8721 29.1792 14.9917 27.2334 13.52C26.7764 13.1758 26.3193 12.856 25.8467 12.5518C23.8618 10.584 26.1069 8.96777 26.627 8.77588C27.1704 8.57568 26.8159 7.8877 25.0591 7.896C23.3022 7.90381 21.6953 8.50391 19.647 9.30371C19.3477 9.42383 19.0322 9.51172 18.7095 9.58398C16.8501 9.22363 14.9199 9.14355 12.9033 9.37598C9.10596 9.80762 6.07275 11.6396 3.84326 14.7681C1.16455 18.5278 0.53418 22.7998 1.30664 27.2559C2.11768 31.9521 4.46582 35.8398 8.07373 38.8799C11.8159 42.0322 16.1255 43.5762 21.041 43.2803C24.0269 43.104 27.3516 42.6963 31.1016 39.4561C32.0469 39.936 33.0396 40.1279 34.686 40.272C35.9546 40.3921 37.1758 40.208 38.1211 40.0078C39.6021 39.688 39.4995 38.2881 38.9639 38.0322C34.623 35.9678 35.5762 36.8081 34.71 36.1279C36.9155 33.4639 40.2402 30.6958 41.54 21.728C41.6426 21.0161 41.5557 20.5679 41.54 19.9917C41.5322 19.6396 41.6108 19.5039 42.0049 19.4639C43.0923 19.3359 44.1479 19.0317 45.1167 18.4878C47.9292 16.9199 49.064 14.3438 49.3315 11.2559C49.3711 10.7837 49.3237 10.2959 48.8354 10.0479ZM24.3262 37.8398C20.1196 34.4639 18.0791 33.3521 17.2358 33.3999C16.4482 33.4482 16.5898 34.3682 16.7632 34.9678C16.9443 35.5601 17.1812 35.9683 17.5117 36.4878C17.7402 36.832 17.8979 37.3442 17.2832 37.728C15.9282 38.584 13.5728 37.4399 13.4624 37.3838C10.7207 35.7358 8.42822 33.5601 6.81348 30.584C5.25342 27.7197 4.34766 24.6479 4.19775 21.3677C4.1582 20.5757 4.38672 20.2959 5.15869 20.1519C6.17529 19.96 7.22314 19.9199 8.23926 20.0718C12.5327 20.7119 16.1885 22.6719 19.2529 25.7759C21.002 27.5439 22.3252 29.6558 23.6885 31.7202C25.1377 33.9121 26.6978 36 28.6831 37.7119C29.3843 38.312 29.9434 38.7681 30.479 39.104C28.8643 39.2881 26.1699 39.3281 24.3262 37.8398ZM26.3433 24.6001C26.3433 24.248 26.6191 23.9678 26.9658 23.9678C27.0444 23.9678 27.1152 23.9839 27.1782 24.0078C27.2651 24.04 27.3438 24.0879 27.4067 24.1602C27.5171 24.272 27.5801 24.4321 27.5801 24.6001C27.5801 24.9521 27.3042 25.2319 26.9575 25.2319C26.6108 25.2319 26.3433 24.9521 26.3433 24.6001ZM32.6064 27.8799C32.2046 28.0479 31.8027 28.1919 31.4165 28.208C30.8179 28.2397 30.1641 27.9922 29.8096 27.688C29.2583 27.2158 28.8643 26.9521 28.6987 26.1279C28.6279 25.7759 28.6675 25.2319 28.7305 24.9199C28.8721 24.248 28.7144 23.8159 28.2495 23.4238C27.8716 23.104 27.3911 23.0161 26.8633 23.0161C26.666 23.0161 26.4849 22.9277 26.3511 22.856C26.1304 22.7441 25.9492 22.4639 26.1226 22.1201C26.1777 22.0078 26.4458 21.7358 26.5088 21.688C27.2256 21.272 28.0527 21.4077 28.8169 21.7197C29.5259 22.0161 30.0615 22.5601 30.834 23.3281C31.6216 24.2559 31.7632 24.5117 32.2124 25.208C32.5669 25.752 32.8901 26.312 33.1104 26.9521C33.2446 27.3521 33.0713 27.6802 32.6064 27.8799Z"/>
+                </g>
+              </svg>
+    <svg id="plane" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#fff" d="M2.7 11.5 21.1 3.3c.7-.3 1.4.3 1.2 1L19.2 20c-.2.9-1.3 1.1-1.8.3L14 15.1l-3.4 3.1c-.6.6-1.6.1-1.5-.8l.3-3.8-6.6-1.1c-.6-.1-.6-.8-.1-1Z"/>
+      <path fill="#fff" fill-opacity=".75" d="M9.4 13.6 21.6 4.9 10.9 15.9Z"/>
+    </svg>
+  </div>
+  <div id="inputPill">
+  <button id="send" type="button" aria-label="发送">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#fff" d="M2.7 11.5 21.1 3.3c.7-.3 1.4.3 1.2 1L19.2 20c-.2.9-1.3 1.1-1.8.3L14 15.1l-3.4 3.1c-.6.6-1.6.1-1.5-.8l.3-3.8-6.6-1.1c-.6-.1-.6-.8-.1-1Z"/>
+      <path fill="#fff" fill-opacity=".75" d="M9.4 13.6 21.6 4.9 10.9 15.9Z"/>
+    </svg>
+  </button>
+  <button id="close" type="button" aria-label="收起">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M7.5 7.5l9 9M16.5 7.5l-9 9"/>
+    </svg>
+  </button>
+  <div id="field">
+    <input id="text" type="text" enterkeyhint="send" autocomplete="off" spellcheck="false"
+           autocapitalize="off" inputmode="text" placeholder="例如：把我刚才那条消息发到微信里">
+  </div>
+  <button id="watch" type="button" title="开始屏幕观察" aria-label="开始屏幕观察"
+          aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" d="M2.5 12s3.4-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.4 5.5-9.5 5.5S2.5 12 2.5 12Z"/>
+      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    </svg>
+  </button>
+  </div>
+  <div id="bubbleText" role="status" aria-live="polite"></div>
+  <div id="bubbleDismiss" aria-hidden="true">×</div>
+</div>
+<div id="measure" aria-hidden="true"></div>
+<script src="./coo/model.js"></script>
+<script src="./coo/coo-bundle.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------ bridge
+   * window.DshBall      the ball: size/pad/x/y/side/image, plus the actions.
+   * window.DshComposer  this bar: send(text), close(), ime(), log(text).
+   *
+   * Every number DshBall publishes is dp, and in this WebView dp == CSS px, so
+   * there is no density maths on this side. Calls are dispatched by the number of
+   * arguments: Android silently drops a call whose count does not match the Java
+   * signature, which is what made "tapping does nothing" and "close does
+   * nothing" look like dead buttons.
+   */
+  function fromBall(name) {
+    try {
+      var B = window.DshBall;
+      if (!B) return undefined;
+      var value = B[name];
+      return typeof value === "function" ? value.call(B) : value;
+    } catch (error) { return undefined; }
+  }
+  function numFrom(name) {
+    var raw = fromBall(name);
+    if (raw === null || raw === undefined || raw === "") return NaN;
+    return Number(raw);
+  }
+  function call(target, method, count, a, b) {
+    try {
+      if (target && typeof target[method] === "function") {
+        if (count <= 0) return target[method]();
+        if (count === 1) return target[method](a);
+        return target[method](a, b);
+      }
+    } catch (error) { /* no bridge: the page is a plain web page, stay silent */ }
+    return undefined;
+  }
+  function toBall(method, a, b) {
+    return call(window.DshBall, method, arguments.length - 1, a, b);
+  }
+  function toComposer(method, a, b) {
+    return call(window.DshComposer, method, arguments.length - 1, a, b);
+  }
+
+  var bar = document.getElementById("bar");
+  var cap = document.getElementById("cap");
+  var whale = document.getElementById("whale");
+  var plane = document.getElementById("plane");
+  var input = document.getElementById("text");
+  var send = document.getElementById("send");
+  var close = document.getElementById("close");
+  var watchButton = document.getElementById("watch");
+  var bubbleEl = document.getElementById("bubbleText");
+  var badgeEl = document.getElementById("badge");
+  var ringEl = document.getElementById("ring");
+  var measureEl = document.getElementById("measure");
+
+  var DEFAULT_SIZE = 58;   // dp, the app's default ball diameter
+  var PLACEHOLDER = "例如：把我刚才那条消息发到微信里";
+  var LISTEN_PLACEHOLDER = "正在听…";
+
+  /* Anything that throws in here is invisible in a WebView with no console, so
+     errors go back through the same bridge as everything else. */
+  window.addEventListener("error", function (event) {
+    toBall("log", "composer.html JS error: " + (event && event.message ? event.message : "?")
+      + " @" + (event && event.lineno ? event.lineno : 0)
+      + " bridge=" + (window.DshComposer ? "yes" : "no"));
+  });
+
+  /* ----------------------------------------------------------------- helpers */
+  function f2(value) { return (Math.round(Number(value) * 100) / 100).toFixed(2); }
+  function reduced() {
+    try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+    catch (error) { return false; }
+  }
+  function ms(value) { return reduced() ? 0 : value; }
+  function sleep(value) {
+    return new Promise(function (resolve) { window.setTimeout(resolve, value); });
+  }
+  /* Only animations this page started are tracked, so cancelling never kills the
+     CSS breathe animation. */
+  var live = { whale: null, plane: null };
+  var doll = {
+    image: new Image(),
+    ready: false,
+    x: 0, y: 0, rot: 0, scale: 1,
+    vx: 0, vy: 0, vr: 0, vs: 0,
+    last: 0,
+    paintAt: 0
+  };
+  var dollCtx = whale.getContext("2d", { alpha: true });
+  var cooDoll = document.getElementById("cooDoll");
+  var cooMirror = document.getElementById("cooMirror");
+  var cooRoot = document.getElementById("cooRoot");
+  var cooFigure = null;
+  var cooStarting = false;
+  var customDoll = false;
+  var currentSide = "left";
+  var turnTarget = 1;
+  var turnValue = 1;
+  var sideInitialized = false;
+  var turnBlink = 0;
+  var blinkSwitchTimer = 0, blinkEndTimer = 0;
+  var idleLookY = 0, idleLookTargetY = 0;
+  var idleLookTimer = 0, idleLookReturnTimer = 0;
+  var rareGestureKind = "", rareGestureStart = 0, rareGestureTimer = 0;
+  var cooTime = 0;
+  var cooLast = 0;
+  var COO_FACES = {
+    neutral: {
+      gap: [50, 50], eyes: [
+        { shape: "ring", rx: 16, ry: 16 },
+        { shape: "ring", rx: 16, ry: 16 }
+      ]
+    },
+    happy: {
+      gap: [58, 58], blush: .45,
+      eyes: [{ shape: "up" }, { shape: "up" }]
+    },
+    thinking: {
+      gap: [46, 46],
+      eyes: [
+        { shape: "ring", rx: 14, ry: 15, dx: 3, dy: -4 },
+        { shape: "ring", rx: 14, ry: 15, dx: 3, dy: -4 }
+      ]
+    }
+  };
+  var COO_LEGS = [[104, 212, 104, 241], [150, 212, 150, 241]];
+  async function initCoo() {
+    if (cooStarting || cooFigure) return;
+    cooStarting = true;
+    try {
+      var base = new URL("./coo/", window.location.href);
+      if (!window.CooFigure || !window.CooRig) throw new Error("Coopanion bundle missing");
+      var model = window.COO_MODEL;
+      if (!model) throw new Error("Coopanion model missing");
+      cooFigure = await window.CooFigure.createWhaleFigure(base, {
+        kit: { createRig: window.CooRig.createRig },
+        model: model
+      });
+      cooDoll.setAttribute("viewBox", model.view.join(" "));
+      // The first side push can arrive before the async rig supplies its final
+      // viewBox. Reapply after that so the vector mirror uses the real centre.
+      setMirror();
+      bar.classList.add("coo-ready");
+      toBall("log", "composer.html Coopanion rig ready");
+    } catch (error) {
+      toBall("log", "composer.html Coopanion rig failed: " + String(error));
+      window.__cooError = String(error);
+      cooFigure = null;
+      bar.classList.remove("coo-ready");
+    } finally {
+      cooStarting = false;
+    }
+  }
+  function setDollSource(src) {
+    doll.ready = false;
+    doll.image.onload = function () { doll.ready = true; };
+    doll.image.onerror = function () {
+      toBall("log", "composer.html doll image failed: " + src);
+    };
+    doll.image.src = src;
+  }
+  function renderDoll(now) {
+    window.requestAnimationFrame(renderDoll);
+    var morphingNow = bar.classList.contains("morphing");
+    var activeNow = morphingNow || bar.classList.contains("spinning")
+      || bar.classList.contains("pressed") || bar.classList.contains("happy");
+    var frameMs = morphingNow ? 16 : activeNow ? 33 : 50;
+    if (now - doll.paintAt < frameMs) return;
+    doll.paintAt = now;
+    if (document.hidden) {
+      doll.last = now;
+      return;
+    }
+    var dt = doll.last === 0 ? 1 / 60 : Math.min(1 / 20, (now - doll.last) / 1000);
+    doll.last = now;
+    var morphing = bar.classList.contains("morphing");
+    var pressed = bar.classList.contains("pressed");
+    var happy = bar.classList.contains("happy");
+    var spinning = bar.classList.contains("spinning");
+    var time = now / 1000;
+    var tx = 0, ty = 0, tr = 0, ts = 1;
+    if (!morphing && !reduced()) {
+      tx = Math.sin(time * 0.85) * 3.2 + turnValue * 1.8;
+      ty = Math.sin(time * 1.25) * 3.8;
+      tr = Math.sin(time * 0.62) * 0.045;
+      ts = 1 + Math.sin(time * 1.05) * 0.018;
+    }
+    if (pressed && !morphing) {
+      ty += 3;
+      ts *= 0.91;
+    }
+    if (happy && !morphing) {
+      ty -= 5;
+      tr -= 0.07;
+      ts *= 1.04;
+    }
+    var spring = 22, damping = 8.5;
+    doll.vx += ((tx - doll.x) * spring - doll.vx * damping) * dt;
+    doll.vy += ((ty - doll.y) * spring - doll.vy * damping) * dt;
+    doll.vr += ((tr - doll.rot) * spring - doll.vr * damping) * dt;
+    doll.vs += ((ts - doll.scale) * spring - doll.vs * damping) * dt;
+    doll.x += doll.vx * dt;
+    doll.y += doll.vy * dt;
+    doll.rot += doll.vr * dt;
+    doll.scale += doll.vs * dt;
+    var turnRate = reduced() ? 24 : 3.8;
+    turnValue += (turnTarget - turnValue) * (1 - Math.exp(-turnRate * dt));
+    idleLookY += (idleLookTargetY - idleLookY) * (1 - Math.exp(-5.2 * dt));
+    var rareGesture = null;
+    var rareElapsed = rareGestureKind ? (now - rareGestureStart) / 1000 : 0;
+    if (rareGestureKind) {
+      var rareAllowed = !morphing && !pressed && !happy && !spinning
+        && bar.classList.contains("ball");
+      if (rareElapsed >= 1.2 || !rareAllowed) {
+        rareGestureKind = "";
+      } else {
+        rareGesture = { kind: rareGestureKind, k: Math.min(1, rareElapsed / 1.2) };
+      }
+    }
+    if (cooFigure) {
+      if (!morphing && !reduced()) cooTime += dt;
+      var faceName = (happy || pressed) ? "happy"
+        : bar.classList.contains("spinning") ? "thinking" : "neutral";
+      var blinkPhase = cooTime % 4.2;
+      var blink = blinkPhase > 4.02
+        ? Math.sin(Math.PI * (blinkPhase - 4.02) / .18) : 0;
+      blink = Math.max(blink, turnBlink);
+      try {
+        cooFigure.draw(cooRoot, COO_FACES[faceName], {
+          t: cooTime,
+          mode: "idle",
+          face: faceName,
+          modeT: cooTime,
+          look: [
+            turnValue * 5.4 + Math.sin(cooTime * .72) * 1.1,
+            idleLookY
+          ],
+          legs: COO_LEGS,
+          low: morphing ? 0 : Math.sin(cooTime * 1.35) * 1.5,
+          blink: blink,
+          eyeClose: 0,
+          talk: 0,
+          swing: 0,
+          drowse: 0,
+          sit: 0,
+          // The CSS wrapper owns facing so a delayed turn can animate the
+          // whole doll. Letting the rig flip immediately as well caused the
+          // character to snap to the destination before the turn began.
+          facing: 1,
+          tilt: pressed && !morphing ? 4 : Math.sin(cooTime * .55) * .35,
+          lean: 0,
+          bodyTurn: 0,
+          back: 0,
+          groupRot: 0,
+          gesture: rareGesture
+        });
+      } catch (error) {
+        toBall("log", "composer.html Coopanion draw failed: " + String(error));
+        cooFigure = null;
+        bar.classList.remove("coo-ready");
+      }
+    }
+    if (!cooFigure && dollCtx) {
+      dollCtx.clearRect(0, 0, whale.width, whale.height);
+      if (doll.ready) {
+        dollCtx.save();
+        dollCtx.translate(128 + doll.x, 128 + doll.y);
+        dollCtx.rotate(doll.rot);
+        dollCtx.scale(doll.scale, doll.scale);
+        dollCtx.drawImage(doll.image, -110, -110, 220, 220);
+        dollCtx.restore();
+      }
+    }
+  }
+  function play(name, element, frames, options) {
+    stop(name);
+    var animation = null;
+    try {
+      if (element && element.animate) animation = element.animate(frames, options);
+    } catch (error) { /* no WAAPI */ }
+    live[name] = animation;
+    return animation;
+  }
+  function stop(name) {
+    var animation = live[name];
+    live[name] = null;
+    if (animation) { try { animation.cancel(); } catch (error) { /* ignore */ } }
+  }
+  /* Every morph is a chain of timed phases. `morph` is the generation counter: a
+     new expand/collapse bumps it, and every pending phase of the old sequence
+     turns into a no-op instead of fighting the new one. */
+  var morph = 0;
+  function step(generation, millis, run) {
+    return sleep(ms(millis)).then(function () {
+      if (generation !== morph) return false;
+      run();
+      return true;
+    });
+  }
+
+  /* ---------------------------------------------------------------- geometry
+   * The window is placed by the app in whole DEVICE pixels (1/2.75 of a CSS
+   * pixel), so the page's rect has to come from the same numbers the app uses
+   * rather than from a rounded offsetTop: innerWidth/innerHeight are the window
+   * in CSS px, and the capsule is `size` tall, centred in it.
+   *
+   * `origin` is where the app says the window's top-left is (ComposerUI.at), in
+   * dp. The page cannot see that by itself — and the app's log plus this page's
+   * "rect=" line are the two halves of the alignment check.
+   */
+  var DEFAULT_PAD = 12;    // dp, only used if the bridge is missing
+  var size = DEFAULT_SIZE;
+  var origin = { x: 0, y: 0 };
+  var expanded = false;
+  var collapsing = false;
+  var listening = false;
+
+  function viewWidth() {
+    var vv = window.visualViewport ? window.visualViewport.width : 0;
+    var w = window.innerWidth || 0;
+    var d = (document.documentElement && document.documentElement.clientWidth) || 0;
+    return Math.max(vv || 0, w, d) || 360;
+  }
+  function viewHeight() {
+    var vv = window.visualViewport ? window.visualViewport.height : 0;
+    var h = window.innerHeight || 0;
+    var d = (document.documentElement && document.documentElement.clientHeight) || 0;
+    return Math.max(vv || 0, h, d) || 640;
+  }
+  function appSize() {
+    var value = Math.round(numFrom("size"));
+    return (isFinite(value) && value > 0) ? value : DEFAULT_SIZE;
+  }
+  function appPad() {
+    var value = numFrom("pad");
+    return (isFinite(value) && value >= 0) ? value : DEFAULT_PAD;
+  }
+  function mirrored() { return currentSide === "right"; }
+  function applySize(next) {
+    var value = Number(next);
+    if (isFinite(value) && value > 0) size = Math.max(16, Math.round(value));
+    document.documentElement.style.setProperty("--size", size + "px");
+  }
+  function applyMirrorClass() {
+    if (mirrored()) bar.classList.add("mirror");
+    else bar.classList.remove("mirror");
+    // Mirror inside the SVG coordinate system. A CSS scaleX layer is resampled
+    // by Android WebView and made the right-side character look compressed.
+    var view = cooDoll.viewBox.baseVal;
+    var mirrorX = view.x * 2 + view.width;
+    cooMirror.setAttribute("transform",
+      mirrored() ? "translate(" + mirrorX + " 0) scale(-1 1)" : "");
+  }
+  function setMirror() {
+    applyMirrorClass();
+  }
+  function animateSide(nextSide) {
+    var target = nextSide === "right" ? "right" : "left";
+    if (target === currentSide) return;
+    if (blinkSwitchTimer) window.clearTimeout(blinkSwitchTimer);
+    if (blinkEndTimer) window.clearTimeout(blinkEndTimer);
+    // Two-dimensional characters turn by closing their eyes for a beat. The
+    // face never leaves; only the open-eye pose changes at the blink's peak.
+    turnBlink = 1;
+    blinkSwitchTimer = window.setTimeout(function () {
+      blinkSwitchTimer = 0;
+      currentSide = target;
+      applyMirrorClass();
+      turnTarget = target === "right" ? -1 : 1;
+    }, ms(150));
+    blinkEndTimer = window.setTimeout(function () {
+      blinkEndTimer = 0;
+      turnBlink = 0;
+    }, ms(400));
+  }
+  function refreshSide() {
+    if (blinkSwitchTimer) window.clearTimeout(blinkSwitchTimer);
+    if (blinkEndTimer) window.clearTimeout(blinkEndTimer);
+    blinkSwitchTimer = blinkEndTimer = 0;
+    turnBlink = 0;
+    try {
+      currentSide = fromBall("side") === "right" ? "right" : "left";
+    } catch (error) {
+      currentSide = "left";
+    }
+    applyMirrorClass();
+    turnTarget = currentSide === "right" ? -1 : 1;
+    if (reduced() || !sideInitialized) turnValue = turnTarget;
+    sideInitialized = true;
+  }
+  function scheduleIdleLook() {
+    if (idleLookTimer) window.clearTimeout(idleLookTimer);
+    var waitMs = 10000 + Math.floor(Math.random() * 30000);
+    toBall("log", "idle look: next glance in " + Math.round(waitMs / 1000) + "s");
+    idleLookTimer = window.setTimeout(function () {
+      idleLookTimer = 0;
+      var down = Math.random() < .5;
+      idleLookTargetY = down ? 3.6 : -3.6;
+      toBall("log", "idle look: " + (down ? "down" : "up"));
+      if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
+      idleLookReturnTimer = window.setTimeout(function () {
+        idleLookReturnTimer = 0;
+        idleLookTargetY = 0;
+        scheduleIdleLook();
+      }, 1200);
+    }, waitMs);
+  }
+  function scheduleRareGesture() {
+    if (reduced()) return;
+    if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
+    var waitMs = 30000 + Math.floor(Math.random() * 120000);
+    rareGestureTimer = window.setTimeout(function () {
+      rareGestureTimer = 0;
+      if (Math.random() < .28) {
+        var kinds = ["shiver", "flap", "nod"];
+        rareGestureKind = kinds[Math.floor(Math.random() * kinds.length)];
+        rareGestureStart = performance.now();
+        toBall("log", "rare gesture: " + rareGestureKind);
+      }
+      scheduleRareGesture();
+    }, waitMs);
+  }
+  /** Where the capsule is on the screen, in dp == CSS px. */
+  function screenRect() {
+    var width = viewWidth();
+    var height = viewHeight();
+    if (bar.classList.contains("full")) {
+      return { left: origin.x, top: origin.y + height - size, width: width, height: size };
+    }
+    return {
+      left: origin.x,
+      top: origin.y + (height - size) / 2,
+      width: width,
+      height: size
+    };
+  }
+  function rectText(rect) {
+    if (!rect) return "?";
+    return f2(rect.left) + "," + f2(rect.top) + " " + f2(rect.width) + "x" + f2(rect.height);
+  }
+  /** The geometry the app can check against `dumpsys window` without a photo. */
+  function report(tag) {
+    toBall("log", "composer.html " + tag + " rect=" + rectText(screenRect())
+      + " origin=" + f2(origin.x) + "," + f2(origin.y)
+      + " inner=" + viewWidth() + "x" + viewHeight()
+      + " size=" + size + " side=" + (mirrored() ? "right" : "left")
+      + " expanded=" + expanded);
+  }
+
+  /* The app's gesture listener calls BallUI.pointer(...). Press feedback stays
+     on the cap so the continuously animated whale and the window never compete
+     for the same transform. */
+  function pointer(kind, dx, dy) {
+    if (kind === "down") {
+      if (!expanded) bar.classList.add("pressed");
+      return;
+    }
+    if (kind === "move" || kind === "drop") {
+      bar.classList.remove("pressed");
+      return;
+    }
+    if (kind === "hold") { setListening(true); return; }
+    if (kind === "lift") {
+      bar.classList.remove("pressed");
+      if (listening) setListening(false);
+      return;
+    }
+    // Unknown kind: ignore. The page must never throw on a bridge call.
+  }
+  function scrollResult(deltaY) {
+    if (!bubbleEl) return;
+    var value = Number(deltaY);
+    if (!isFinite(value)) return;
+    bubbleEl.scrollTop = Math.max(0,
+      Math.min(bubbleEl.scrollHeight - bubbleEl.clientHeight, bubbleEl.scrollTop + value));
+    var now = Date.now();
+    if (now - lastScrollLogAt > 250) {
+      lastScrollLogAt = now;
+      toBall("log", "composer.html result scroll top=" + Math.round(bubbleEl.scrollTop)
+        + " max=" + Math.max(0, bubbleEl.scrollHeight - bubbleEl.clientHeight));
+    }
+  }
+  var lastScrollLogAt = 0;
+
+  /* ------------------------------------------------------------------- morph
+   * The app owns the window: it grows the ball's square onto the bar's rect over
+   * 400 ms. This page owns what is inside it:
+   *
+   *   expand()    whale out 160 ms -> the plane flies in from the lower outer
+   *               corner over 240 ms -> the field and the buttons fade in as the
+   *               capsule passes the ball's width.
+   *   collapse()  the plane flies back out 180 ms -> the whale fades in 200 ms,
+   *               while the app shrinks the window back onto the ball.
+   *
+   * Neither sequence touches the window or a rect: the window IS the capsule.
+   */
+  function expand() {
+    if (expanded) return;
+    expanded = true;
+    collapsing = false;
+    // The bar and the bubble are the same window: opening the bar cancels any
+    // bubble that was showing, including a pending fold-back animation.
+    bubbleGen++;
+    stopBubbleTimers();
+    bubblePhase = "";
+    bubbleLabel = "";
+    bubbleResultMode = false;
+    bubbleEl.classList.remove("result");
+    bar.classList.remove("result");
+    bubbleEl.style.maxHeight = "";
+    bubbleEl.style.overflowY = "";
+    lastBubbleWidth = 0;
+    lastBubbleHeight = 0;
+    bar.classList.remove("bubble");
+    var generation = ++morph;
+    applySize(appSize());
+    setMirror();
+    bar.classList.remove("ball", "landed", "open");
+    bar.classList.add("full", "morphing");
+    var layout = bar.getBoundingClientRect();
+    toBall("log", "composer.html full layout top=" + layout.top
+      + " height=" + layout.height + " view=" + viewHeight()
+      + " pill=" + (document.getElementById("inputPill").offsetHeight));
+    stop("whale");
+    stop("plane");
+    bar.classList.remove("pressed");
+    whale.style.opacity = "1";
+    whale.style.transform = "";
+    plane.style.opacity = "0";
+    plane.style.transform = "";
+    // The window is already growing upward; reveal the pill once there is room,
+    // while the doll stays visible at the bottom for the whole transition.
+    step(generation, 140, function () {
+      if (expanded) bar.classList.add("open");
+    });
+    step(generation, 400, function () {
+      if (!expanded) return;
+      // The window's own rect is logged by the app and by ComposerUI.at(); this
+      // line only says the page's half of the morph is over.
+      toBall("log", "composer.html morph done size=" + size
+        + " side=" + (mirrored() ? "right" : "left"));
+    });
+  }
+
+  function resetVisual() {
+    badgeEl.textContent = "";
+    badgeEl.style.display = "none";
+    toBall("log", "composer.html folded: badge=" + badgeEl.style.display
+      + " spinning=" + bar.classList.contains("spinning")
+      + " ball=" + bar.classList.contains("ball"));
+    stop("whale");
+    stop("plane");
+    bar.classList.remove("pressed");
+    stop("bubbleText");
+    stopBubbleTimers();
+    bubbleGen++;
+    bubblePhase = "";
+    bubbleLabel = "";
+    bubbleResultMode = false;
+    lastBubbleWidth = 0;
+    lastBubbleHeight = 0;
+    bubbleEl.style.opacity = "";
+    expanded = false;
+    collapsing = false;
+    bar.classList.remove("bubble", "open", "full", "landed", "listening", "happy", "morphing", "pressed");
+    bar.classList.add("ball");
+    applySize(appSize());
+    setMirror();
+    whale.style.opacity = "1";
+    whale.style.transform = "";
+    plane.style.opacity = "0";
+    plane.style.transform = "";
+    listening = false;
+    input.setAttribute("placeholder", PLACEHOLDER);
+    // No rect report here: the app moves the window onto the ball and pushes the
+    // new origin (ComposerUI.at), and that "at" line is the one that gets
+    // compared with the window's frame. A rect logged from here would be the
+    // stale, pre-snap origin.
+    toBall("log", "composer.html ball back size=" + size
+      + " side=" + (mirrored() ? "right" : "left"));
+  }
+
+  function collapse() {
+    if (collapsing) return;
+    if (!expanded) { resetVisual(); return; }
+    expanded = false;
+    collapsing = true;
+    bar.classList.add("morphing");
+    bar.classList.remove("happy");
+    // Keep the full stacked layout until the native window has shrunk all the
+    // way back. Removing it early would make the doll jump out of the input row.
+    bar.classList.remove("open");
+    stop("whale");
+    stop("plane");
+    bar.classList.remove("pressed");
+    toBall("log", "composer.html input folding; doll stays visible");
+  }
+
+  function collapseDone() {
+    // The app tears its focus down in the same frame it calls collapse(); a hard
+    // reset while the shrink is still running would cut the animation, so this
+    // only resets once the page's own sequence is over.
+    if (expanded) return;
+    collapsing = false;
+    resetVisual();
+  }
+
+  /* ------------------------------------------------------------------- field */
+  function focus() {
+    try { input.focus(); } catch (error) { /* the window may not be focusable yet */ }
+  }
+  function submit() {
+    var value = (input.value || "").trim();
+    if (value === "") { focus(); return; }
+    input.value = "";
+    toComposer("send", value);
+    focus();   // ready for the next line; the app closes the bar when it wants to
+  }
+  function heard(value) {
+    var text = (value === null || value === undefined) ? "" : String(value);
+    if (text === "") return;
+    input.value = text;
+    focus();
+    try { input.setSelectionRange(text.length, text.length); } catch (error) { /* ignore */ }
+  }
+  function setListening(on) {
+    listening = !!on;
+    if (listening) bar.classList.add("listening");
+    else bar.classList.remove("listening");
+    input.setAttribute("placeholder", listening ? LISTEN_PLACEHOLDER : PLACEHOLDER);
+  }
+  function setWatchAvailable(on) {
+    var available = !!on;
+    bar.classList.toggle("watchable", available);
+    watchButton.setAttribute("aria-hidden", available ? "false" : "true");
+  }
+  function setWatchActive(on) {
+    var active = !!on;
+    bar.classList.toggle("watch-on", active);
+    watchButton.classList.toggle("on", active);
+    watchButton.setAttribute("aria-pressed", active ? "true" : "false");
+    watchButton.setAttribute("aria-label", active ? "退出屏幕观察" : "开始屏幕观察");
+    watchButton.title = active ? "退出屏幕观察" : "开始屏幕观察";
+  }
+  /** The app calls this once the window is on the bar's rect and focusable. */
+  function open() {
+    applySize(appSize());
+    refreshSide();
+    // The input pill now sits above the doll; the doll stays on screen at its
+    // original position and remains the visual anchor of the overlay.
+    bar.classList.remove("ball", "landed");
+    bar.classList.remove("morphing");
+    bar.classList.add("full", "open", "happy");
+    window.setTimeout(function () { bar.classList.remove("happy"); }, 520);
+    expanded = true;
+  }
+  /** Where the app says this window's top-left is, in dp (see screenRect). */
+  function at(x, y) {
+    var nx = Number(x);
+    var ny = Number(y);
+    if (isFinite(nx)) origin.x = nx;
+    if (isFinite(ny)) origin.y = ny;
+    // The window has just been moved/resized by the app; one re-measure a frame
+    // later is what the app's own log line is compared against. Not a watchdog:
+    // it runs once per move and only writes a log line.
+    window.setTimeout(function () { report("at"); }, 60);
+  }
+
+  send.addEventListener("mousedown", function (event) {
+    // Keep the input focused (and the keyboard up): a plain button press would
+    // move focus off the field.
+    event.preventDefault();
+  });
+  send.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    submit();
+  });
+  close.addEventListener("mousedown", function (event) { event.preventDefault(); });
+  close.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    toComposer("close");
+  });
+  watchButton.addEventListener("mousedown", function (event) { event.preventDefault(); });
+  watchButton.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    toComposer("watch", watchButton.classList.contains("on"));
+  });
+  // Tapping the whale is "tap the ball again": the one gesture the user already
+  // knows closes the bar.
+  cap.addEventListener("click", function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    toComposer("close");
+  });
+  bar.addEventListener("click", function (event) {
+    // Opening the floating window must not steal focus or raise the keyboard.
+    // Only a deliberate tap on the text field does that below.
+    event.stopPropagation();
+  });
+  input.addEventListener("click", function () {
+    focus();
+    window.setTimeout(function () { toComposer("ime"); }, 0);
+  });
+  input.addEventListener("keydown", function (event) {
+    var key = event.key;
+    var code = event.keyCode;
+    if (key === "Enter" || code === 13) { event.preventDefault(); submit(); return; }
+    if (key === "Escape" || code === 27) { event.preventDefault(); toComposer("close"); return; }
+    // Backspace on an empty field used to close the bar. That looked like a
+    // gesture but read as a bug: delete the last character, press backspace once
+    // more, and the bar vanished mid-typing. Deleting is now just deleting.
+  });
+
+  /* ------------------------------------------------------------------ bubble
+   * The status the user reads, drawn by the ball itself.
+   *
+   * The app stretches this window off the ball's square; the page only fills it
+   * and decides HOW WIDE the line needs to be (only the page can measure text).
+   * The measurement happens in `#measure`, an off-screen twin of the text block,
+   * because when a bubble starts the window is still only as wide as the ball.
+   *
+   *   work   the line the caller gave, ring turning
+   *   think  one fixed line, 思考中, ring turning (it used to cycle three words every 1.4 s,
+   *          which the user read as "changing too fast" — a loading line that
+   *          rewrites itself faster than it can be read is noise, not feedback)
+   *   done   ✓ + the line (the app folds it back after 2.6s)
+   *   say    a plain line, no frame ("你：…", a delivery result)
+   */
+  /** The one thinking line. Fixed on purpose: no word cycling, no timer. */
+  var THINK_LABEL = "思考中";
+  var BUBBLE_LINES = 5;
+  var BUBBLE_LINE = 20;      // px, the line-height in the CSS above
+  var BUBBLE_VPAD = 18;      // 8 px padding plus the border (must match the CSS)
+  var BUBBLE_GAP = 8;
+  var bubblePhase = "";
+  var bubbleLabel = "";
+  var bubbleResultMode = false;
+  var lastSpin = false;
+  var bubbleGen = 0;
+  var lastBubbleWidth = 0;
+  var lastBubbleHeight = 0;
+
+  function stopBubbleTimers() {
+    // Nothing cycles any more (the thinking line is fixed and the running state
+    // is a CSS animation); all that is left to undo is the class. Leaving it
+    // behind would leave the spinner turning over the whale after the status is
+    // gone.
+
+    bar.classList.remove("spinning");
+    lastSpin = false;
+  }
+  /** The screen width in dp — the page's own `vw` is this small window. */
+  function screenDp() {
+    var value = numFrom("screen");
+    if (isFinite(value) && value > 0) return value;
+    var cx = numFrom("x");      // the ball's centre: never 0 in practice
+    if (isFinite(cx) && cx > 0) return Math.max(320, cx * 2);
+    return 360;
+  }
+  function maxBubbleWidth() { return Math.max(96, Math.min(screenDp() * .84, screenDp())); }
+  /* The line is the status text alone. The phase marker is a badge on the whale
+     (see #badge), so the whale is never displaced and never dropped. */
+  function bubbleLine() { return bubbleLabel; }
+  /** Only the ✓ is a glyph now; the running state is the spinner. */
+  function bubbleBadge() {
+    return bubblePhase === "done" ? "\u2713" : "";
+  }
+  function applyBadge() {
+    // The ring is a boolean state, not a per-phase one: thinking and working both
+    // turn it on, so switching between them leaves the class (and therefore the
+    // CSS animation) untouched — no restart, no flicker.
+    var spin = !bubbleResultMode
+      && (bubblePhase === "work" || bubblePhase === "think");
+    if (spin !== lastSpin) {
+      if (spin) bar.classList.add("spinning"); else bar.classList.remove("spinning");
+      lastSpin = spin;
+      if (spin && ringEl) {
+        // Proof, from the device, that this is a CSS animation and not frames.
+        var style = window.getComputedStyle ? window.getComputedStyle(ringEl) : null;
+        toBall("log", "composer.html ring animation=" + (style ? style.animationName : "?")
+          + " duration=" + (style ? style.animationDuration : "?")
+          + " iteration=" + (style ? style.animationIterationCount : "?")
+          + " timing=" + (style ? style.animationTimingFunction : "?")
+          + " display=" + (style ? style.display : "?"));
+      }
+    }
+    var mark = bubbleBadge();
+    badgeEl.textContent = mark;
+    badgeEl.style.display = mark === "" ? "none" : "grid";
+  }
+  function renderBubble() {
+    var line = bubbleLine();
+    var maxHeight = Math.max(1, BUBBLE_LINES) * BUBBLE_LINE + BUBBLE_VPAD;
+    // The text may use what is left after the whale's own square: the capsule is
+    // whale + text, so the width measured below is the TEXT block only and the
+    // whale's `size` is added to it. Measuring the text as if it were the whole
+    // capsule is what would clip the tail.
+    var textCap = Math.max(52, Math.round(maxBubbleWidth()) - size - BUBBLE_GAP);
+    bubbleEl.textContent = line;
+    bubbleEl.style.maxWidth = textCap + "px";
+    bubbleEl.style.maxHeight = maxHeight + "px";
+    bubbleEl.style.overflowY = "auto";
+    measureEl.textContent = line;
+    measureEl.style.maxWidth = textCap + "px";
+    measureEl.style.maxHeight = maxHeight + "px";
+    measureEl.style.overflow = "hidden";
+    applyBadge();
+    var textWidth = Math.ceil(measureEl.offsetWidth);
+    var height = Math.ceil(measureEl.offsetHeight);
+    if (!isFinite(textWidth) || textWidth <= 0) return;
+    // The ball's own height is the floor (a one-line bubble IS the ball, grown
+    // sideways); three rows plus the vertical padding is the ceiling. Between the
+    // two the capsule grows row by row — 40 / 52 / 72 dp — instead of squeezing
+    // two lines into the ball's 40 dp.
+    var wantedWidth = Math.max(size, Math.min(size + BUBBLE_GAP + textWidth, Math.round(maxBubbleWidth())));
+    var wantedHeight = Math.max(size,
+      Math.min(height, maxHeight));
+    if (wantedWidth === lastBubbleWidth && wantedHeight === lastBubbleHeight) return;
+    lastBubbleWidth = wantedWidth;
+    lastBubbleHeight = wantedHeight;
+    toBall("bubbleSize", wantedWidth, wantedHeight);
+    toBall("log", "composer.html bubble phase=" + bubblePhase + " chars=" + line.length
+      + " box=" + wantedWidth + "x" + wantedHeight
+      + " whale=" + size + " text=" + textWidth
+      + " screen=" + Math.round(screenDp()) + " cap=" + Math.round(maxBubbleWidth()));
+  }
+  /** A status, rendered on the ball. The app does the window, this does the text. */
+  function bubble(phase, text) {
+    if (expanded) return;                     // the typing bar owns the window
+    var wanted = (phase === null || phase === undefined || phase === "") ? "idle" : String(phase);
+    var label = (text === null || text === undefined) ? "" : String(text);
+    var previousLabel = bubbleLabel;
+    var keepResult = bubbleResultMode && label !== "" && label === previousLabel;
+    if (wanted === "idle") { bubbleDone(); return; }
+    if (wanted === "think" && window.__dshBallThink === false) { bubbleDone(); return; }
+    if (label === "" && wanted !== "think") { bubbleDone(); return; }
+    if (bubbleResultMode && label !== previousLabel
+        && (wanted === "work" || wanted === "think" || wanted === "done")) return;
+    bubbleGen++;
+    stopBubbleTimers();
+    stop("whale");
+    stop("plane");
+    stop("press");
+    stop("bubbleText");
+    bubbleEl.style.opacity = "";
+    bubblePhase = wanted;
+    bubbleLabel = label;
+    bubbleResultMode = wanted === "result" || keepResult;
+    bubbleEl.classList.toggle("result", bubbleResultMode);
+    bar.classList.toggle("result", bubbleResultMode);
+    bar.classList.toggle("thinking", wanted === "think");
+    // "思考中" is for thinking only: a work status keeps the line it was given,
+    // so a tool call never reads as thinking.
+    if (wanted === "think" && bubbleLabel === "") bubbleLabel = THINK_LABEL;
+    lastBubbleWidth = 0;
+    lastBubbleHeight = 0;
+    applySize(appSize());
+    setMirror();
+    bar.classList.remove("ball", "open", "full", "landed");
+    bar.classList.add("bubble");
+    // The whale is the bubble's left cap and the square it already occupied: it
+    // simply stays where it was while the capsule grows out of it.
+    whale.style.opacity = "1";
+    whale.style.transform = "";
+    plane.style.opacity = "0";
+    plane.style.transform = "";
+    // A new result starts at its beginning. The native drag handler can then
+    // move through the rest without carrying the previous reply's scroll offset.
+    if (wanted === "result" && !keepResult) bubbleEl.scrollTop = 0;
+    renderBubble();
+  }
+  /** The app shrank the window back onto the ball: the whale comes back. */
+  function bubbleDone() {
+    stopBubbleTimers();
+    // The ✓ belongs to the bubble: on the way back into the ball it goes, or the
+    // ball's circular clip cuts it into a stray corner mark.
+    badgeEl.textContent = "";
+    badgeEl.style.display = "none";
+    var generation = ++bubbleGen;
+    bubblePhase = "";
+    bubbleLabel = "";
+    bubbleResultMode = false;
+    bar.classList.remove("result", "thinking");
+    lastBubbleWidth = 0;
+    lastBubbleHeight = 0;
+    if (!bar.classList.contains("bubble")) return;
+    var fade = play("bubbleText", bubbleEl,
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: ms(130), fill: "forwards", easing: "ease-in" });
+    if (!fade) bubbleEl.style.opacity = "0";
+    window.setTimeout(function () {
+      if (generation !== bubbleGen) return;     // a new bubble took over
+      if (expanded) return;                     // the bar took over
+      stop("bubbleText");
+      bubbleEl.style.opacity = "";
+      bar.classList.remove("bubble");
+      bar.classList.add("ball");
+      toBall("log", "composer.html folded: badge=" + badgeEl.style.display
+        + " mark=" + JSON.stringify(badgeEl.textContent)
+        + " spinning=" + bar.classList.contains("spinning")
+        + " ball=" + bar.classList.contains("ball"));
+      applySize(appSize());
+      setMirror();
+      plane.style.opacity = "0";
+      plane.style.transform = "";
+      var back = play("whale", whale,
+        [{ opacity: 0, transform: "scale(.85)" }, { opacity: 1, transform: "scale(1)" }],
+        { duration: ms(170), fill: "forwards", easing: "ease-out" });
+      if (!back) whale.style.opacity = "1";
+      toBall("log", "composer.html ball back size=" + size
+        + " side=" + (mirrored() ? "right" : "left"));
+    }, ms(130));
+  }
+
+  /** Called by the app (evaluateJavascript) and once at load with the stored values.
+   *  Hot by construction: applying is just reading, so the ball never reloads for it. */
+  window.__dshBallSettings = function (s) {
+    s = s || {};
+    var flag = function (v, d) { return v === undefined || v === null ? d : v === true; };
+    var lines = Math.max(1, Math.min(5, parseInt(s.ballBubbleLines, 10) || 5));
+    var status = flag(s.ballShowStatus, true), think = flag(s.ballShowThink, true), ring = flag(s.ballShowRing, true);
+    document.body.classList.toggle("no-status", !status);
+    document.body.classList.toggle("no-ring", !ring);
+    document.documentElement.style.setProperty("--lines", String(lines));
+    BUBBLE_LINES = lines;
+    setWatchAvailable(s.screenWatchEnabled);
+    window.__dshBallThink = think;
+    window.__dshBallSettingsApplied = true;
+    console.log("ball settings applied: status=" + (status ? "on" : "off")
+      + " think=" + (think ? "on" : "off") + " ring=" + (ring ? "on" : "off") + " lines=" + lines);
+    return true;
+  };
+  window.ComposerUI = {
+    // The app pushes settings through this entry (see BallService.applySettings).
+    settings: window.__dshBallSettings,
+    open: open,
+    at: at,
+    side: function (value) {
+      animateSide(value);
+    },
+    heard: heard,
+    setListening: setListening,
+    watchActive: setWatchActive,
+    watchAvailable: setWatchAvailable,
+    close: function () { toComposer("close"); },
+    size: function (dp) { applySize(dp); },
+    rect: function () { return rectText(screenRect()); }
+  };
+
+  /* The app drives the ball through BallUI, exactly as it did when the ball was
+     drawn in its own window. Everything that used to move a rect in here is now
+     the app moving the window, so pointer() only does the press feedback. */
+  window.BallUI = {
+    expand: expand,
+    collapse: collapse,
+    collapseDone: collapseDone,
+    requestCollapse: function () { toComposer("close"); },
+    pointer: pointer,
+    bubble: bubble,
+    bubbleDone: bubbleDone,
+    scrollResult: scrollResult,
+    resultInfo: function () {
+      return JSON.stringify({
+        result: bubbleResultMode,
+        top: Math.round(bubbleEl.scrollTop),
+        max: Math.max(0, bubbleEl.scrollHeight - bubbleEl.clientHeight)
+      });
+    },
+    say: function (text) { bubble("say", text); },
+    setSize: function (dp) { applySize(dp); },
+    size: function (dp) { applySize(dp); },
+    setListening: setListening,
+    heard: heard,
+    heardPartial: heard,
+    watchActive: setWatchActive,
+    watchAvailable: setWatchAvailable,
+    refresh: function () {
+      applySize(appSize());
+      refreshSide();
+      report("refresh");
+    },
+    isExpanded: function () { return expanded; },
+    // Additive, read-only: the capsule's rect on the screen, in dp, so the app's
+    // log can answer "is the page's capsule on the window's frame?" with numbers.
+    rect: function () { return rectText(screenRect()); }
+  };
+
+  window.addEventListener("resize", function () {
+    // The app resizes this window every frame of the morph, so this listener
+    // must stay silent: 24 log lines per expand would bury the one "at" line the
+    // alignment check reads.
+    setMirror();
+  });
+
+  /* -------------------------------------------------------------------- boot */
+  function applyImage() {
+    // A selected still image keeps using the lightweight canvas. With no custom
+    // image, mount the full Coopanion layered whale rig.
+    var chosen = fromBall("image");
+    customDoll = typeof chosen === "string" && /\.(png|jpe?g|webp)$/i.test(chosen);
+    if (customDoll) {
+      setDollSource("file://" + chosen);
+    } else {
+      setDollSource(new URL("../ball/blue-fish.png", window.location.href).href);
+      initCoo();
+    }
+  }
+
+  applyImage();
+  window.requestAnimationFrame(renderDoll);
+  window.addEventListener("pagehide", function () {
+    if (idleLookTimer) window.clearTimeout(idleLookTimer);
+    if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
+    if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
+  });
+  applySize(appSize());
+  setMirror();
+  scheduleIdleLook();
+  scheduleRareGesture();
+  input.setAttribute("placeholder", PLACEHOLDER);
+  setWatchAvailable(fromBall("watchAvailable"));
+  setWatchActive(fromBall("watchActive"));
+  report("boot");
+  toBall("log", "composer.html boot pad=" + appPad()
+    + " bridge=" + (window.DshComposer ? "yes" : "no"));
+})();
+</script>
+</body>
+</html>

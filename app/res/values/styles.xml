@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Dark from the very first frame: windowBackground paints before the
+      activity's own views exist, so it is what the user sees while the sandbox
+      boots. The system bars match, otherwise the light bar strip above and
+      below the dark content reads as another flash.
+    -->
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <!--
+          Transparent, not a colour: with the acrylic tier the window is translucent and
+          the bars must show the same blurred wallpaper as the page. An opaque
+          windowBackground here is also what the system records as the app's bar colour
+          (`backgroundColor=ff0e0f12`), which is the strip that read as a black bar.
+          The launch frame and the loading overlay paint their own colour in code.
+        -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackground">@color/boot_background</item>
+        <item name="android:statusBarColor">@color/boot_background</item>
+        <item name="android:navigationBarColor">@color/boot_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

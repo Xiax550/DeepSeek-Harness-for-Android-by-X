@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  灵动 — a four-point sparkle with a smaller companion, the flat-and-geometric
+  register Fluent uses for assistant marks.
+
+  Chosen because the ball is a mouth for the agent: a sparkle says "say something
+  and something happens" without repeating the whale the app icon already is.
+  Source for payload/opt/dsh/android/ball/spark.png.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <path fill="#FFFFFF"
+        d="M22.4,5.2 C24.4,15.2 26.8,18.2 35.6,20.4 C26.8,22.6 24.4,25.6 22.4,35.6 C20.4,25.6 18,22.6 9.2,20.4 C18,18.2 20.4,15.2 22.4,5.2 Z"/>
+  <path fill="#FFFFFF" fill-opacity="0.7"
+        d="M34.6,31.4 C35.5,35.8 36.5,37.1 40.2,38 C36.5,38.9 35.5,40.2 34.6,44.6 C33.7,40.2 32.7,38.9 29,38 C32.7,37.1 33.7,35.8 34.6,31.4 Z"/>
+</svg>

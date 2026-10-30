@@ -1,0 +1,22 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "dsh-plugin-android": "file:./node_modules/dsh-plugin-android",
+    "dshmarket": "file:./node_modules/dshmarket",
+    "@local/agent-browser-viewer": "file:./node_modules/@local/agent-browser-viewer",
+    "@local/dsh-ball-summarizer": "file:./node_modules/@local/dsh-ball-summarizer"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dshmarket",
+        "@local/agent-browser-viewer",
+        "@local/dsh-ball-summarizer",
+        "@deepseek-ai/dsh-experimental-voice-input-bundle"
+      ]
+    }
+  }
+}

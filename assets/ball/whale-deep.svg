@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  深海鲸 — the recommended floating-ball mark.
+
+  Layered: a white body with an even-odd eye cut-out, a soft belly, a fluke and a
+  spout. The cut-out matters: the ball's own fill shows through the eye, so the
+  mark stays crisp on any ball colour instead of carrying a hardcoded dot that is
+  slightly wrong half the time.
+
+  Source for payload/opt/dsh/android/ball/whale-deep.png — rendered by
+  scripts/render_ball_icons.py. Flat white only: the ball is monochrome, and the
+  file is decoded by BitmapFactory, so gradients would gain nothing.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <path fill="#FFFFFF" fill-rule="evenodd"
+        d="M5.6,27.2 C5.6,20.2 12.4,15.4 21.6,15.4 C30.8,15.4 37.6,20.2 37.6,27.2 C37.6,33.4 30.8,37.6 21.6,37.6 C12.4,37.6 5.6,33.4 5.6,27.2 Z M14.4,23.4 m-2.1,0 a2.1,2.1 0 1,0 4.2,0 a2.1,2.1 0 1,0 -4.2,0 Z"/>
+  <path fill="#FFFFFF" fill-opacity="0.45"
+        d="M8.8,30.6 C13.4,34.8 20.6,35.8 26.8,33.6 C23,36.8 13.8,36.2 8.8,30.6 Z"/>
+  <path fill="#FFFFFF" d="M36,21.2 L45.4,13.6 C43.8,19.2 43.8,24.8 45.4,30.6 L36,25.8 Z"/>
+  <path fill="#FFFFFF" fill-opacity="0.9"
+        d="M13.2,9.8 m-1.9,0 a1.9,1.9 0 1,0 3.8,0 a1.9,1.9 0 1,0 -3.8,0 Z"/>
+  <path fill="#FFFFFF" fill-opacity="0.65"
+        d="M19.6,6.4 m-1.4,0 a1.4,1.4 0 1,0 2.8,0 a1.4,1.4 0 1,0 -2.8,0 Z"/>
+</svg>

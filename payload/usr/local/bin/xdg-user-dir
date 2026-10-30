@@ -1,0 +1,54 @@
+#!/bin/sh
+# xdg-user-dir — minimal stand-in for the freedesktop helper, for the PRoot sandbox.
+#
+# Why this exists: the harness resolves the user's Documents directory by running
+# `xdg-user-dir DOCUMENTS` on Linux. That program belongs to xdg-user-dirs and is not
+# part of this rootfs (there is no desktop session), so the call failed and every
+# feature that depends on it broke. The visible one was the default workspace:
+#
+#   workspaceRegistry.initializeDefault() -> defaultWorkspaceDirectory()
+#     -> run("xdg-user-dir", ["DOCUMENTS"]) -> ENOENT
+#     -> 「无法创建默认工作区，请通过"选择工作区"选择文件夹」
+#
+# Answering the question locally is a smaller, more honest fix than teaching each
+# caller about Android: the harness keeps using its normal code path, it just gets a
+# real answer. `/root` is the guest home, which is a bind mount onto app storage and
+# therefore writable and persistent.
+#
+# Only the queries that have a sensible answer here are handled; anything else exits
+# non-zero, exactly as the real tool does for an unknown name, so a caller that cares
+# about the difference still can.
+set -eu
+
+# The sandbox has no XDG config and `$HOME` is always set by start-dsh.sh; fall back
+# to /root so the tool still answers under a bare shell.
+home="${HOME:-/root}"
+
+case "${1:-}" in
+  DOCUMENTS | DOWNLOAD | DOWNLOADS | DESKTOP | PUBLICSHARE | TEMPLATES)
+    # All of these collapse onto the home directory. The harness only appends
+    # "deepseek-harness/<name>" to the result, so any writable absolute path works;
+    # they are listed separately only so a future caller gets a plausible answer
+    # instead of an error.
+    printf '%s\n' "$home"
+    ;;
+  MUSIC | PICTURES | VIDEOS)
+    printf '%s\n' "$home"
+    ;;
+  --help | -h)
+    cat <<'EOF'
+xdg-user-dir (蓝肥鱼 shim)
+usage: xdg-user-dir NAME
+Prints a directory for NAME. In this sandbox every known name maps to $HOME.
+EOF
+    ;;
+  "")
+    printf '%s\n' "$home"
+    ;;
+  *)
+    # Unknown name: the real tool prints nothing and exits 1.
+    exit 1
+    ;;
+esac
+
+exit 0

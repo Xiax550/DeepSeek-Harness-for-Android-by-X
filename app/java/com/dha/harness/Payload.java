@@ -1,0 +1,933 @@
+package com.dha.harness;
+
+import android.content.Context;
+import android.system.ErrnoException;
+import android.system.Os;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+
+import org.json.JSONObject;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Enumeration;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+
+/**
+ * First-run installation of the bundled sandbox.
+ *
+ * assets/payload.zip holds a complete Ubuntu rootfs (glibc, aarch64) with Node,
+ * the harness, and this app's guest-side services. Installing it means
+ * unpacking ~250 MB into filesDir.
+ *
+ * The archive is a zip read by java.util.zip, deliberately: an earlier tar
+ * reader here desynchronised on the padding after some file entries and
+ * silently dropped the entries that followed. Zip carries the two things a
+ * rootfs actually needs — unix modes and symlinks — through the external
+ * attributes field, so the JDK's parser is sufficient and there is no format
+ * code to get wrong.
+ */
+public final class Payload {
+
+    public static final String ASSET = "payload.zip";
+
+    /**
+     * Sibling of the archive carrying unix modes and symlink targets:
+     * "mode<TAB>path[<TAB>link-target]", one entry per non-directory. Android's
+     * ZipEntry exposes no external attributes, so the zip cannot carry them.
+     */
+    public static final String MANIFEST = "payload.manifest";
+
+    private static final int S_IFMT = 0xF000;
+    private static final int S_IFLNK = 0xA000;
+
+    public interface Progress {
+        void onProgress(long done, long total, String detail);
+    }
+
+    private Payload() {
+    }
+
+    public static boolean isReady() {
+        return App.i().isBundledReady();
+    }
+
+    /** Overlay archive of the small, always-current files (see scripts/make_hot_zip.py). */
+    public static final String HOT_ASSET = "hot.zip";
+
+    private static final String[] HOT_ALLOWED_PREFIXES = {
+            "opt/dsh/android/", "opt/dsh/dsh-plugin-android/", "etc/", "@home/",
+            // The pi-ai adapter owns model media conversion. Keep this prefix
+            // narrow so a hot package cannot rewrite arbitrary runtime packages.
+            "opt/dsh/node_modules/@deepseek-ai/dsh-llm-pi-ai/",
+            // guest commands (ui, shiz, ball). They are exactly the kind of thing
+            // that gets a contract fix, and shipping one through the runtime
+            // channel means re-sending 190 MB for a 5 KB script.
+            "usr/local/bin/"
+    };
+
+    private static final String HOT_VERSION_KEY = "hotVersion";
+
+    /**
+     * Re-apply the hot overlay into the bundled rootfs, then the user's package.
+     *
+     * Runs on every launch: the payload archive is only re-extracted when its
+     * content hash changes, and without this a plugin or guest-script fix would
+     * mean unpacking the whole rootfs again. Entries are guest-absolute paths.
+     *
+     * The baked overlay is the *baseline*, not the last word: a package the user
+     * fetched or picked is replayed on top of it here, which is what makes an
+     * incremental hot update survive a restart.
+     */
+    public static void applyHot(Context ctx) {
+        int fromAsset = unpackHot(ctx, null, null);
+        if (fromAsset >= 0) {
+            App.log("hot overlay applied: " + fromAsset + " files");
+        }
+        replayStoredHot(ctx);
+        discardForeignHot();
+        // Deliberately nothing else. Packages used to be picked up from Download
+        // or Documents on every launch, which meant one stale dsh-hot.zip left in
+        // a folder silently overwrote whatever the user applied afterwards — the
+        // app looked like it "installed the old one again" out of nowhere. A hot
+        // package is now applied only when someone asks for it: the update card's
+        // online fetch, or a file the user picks (see applyFile).
+    }
+
+    /**
+     * Forget a hot package that belongs to another line.
+     *
+     * A package is built for one exact `<app>-t<terminal>` pair. Once the shell
+     * or the runtime moves on, whatever is recorded from the old line describes
+     * a plugin that is no longer the newest thing on disk — the baked overlay has
+     * already replaced it at this point — so the record would only make the
+     * settings page claim a version that is not what is running.
+     */
+    private static void discardForeignHot() {
+        String applied = App.i().prefs.getString(HOT_VERSION_KEY, "");
+        if (applied.isEmpty()) return;
+        String line = App.appVersion() + "-t" + App.terminalVersion() + "-";
+        if (applied.startsWith(line)) return;
+        App.i().prefs.edit().remove(HOT_VERSION_KEY).apply();
+        // The package itself is just as foreign as the record: keeping it would
+        // let the next startup replay another runtime's files.
+        //noinspection ResultOfMethodCallIgnored
+        storedHotPackage().delete();
+        hotMessage = "已清除不属于本版本的热包（" + applied + "）";
+        App.log("hot package " + applied + " is from another line; discarded");
+    }
+
+    /**
+     * The one slot for "the hot package the user actually applied".
+     *
+     * The baked overlay is written into the rootfs on every launch, so the files
+     * a user fetched or picked are replaced by the APK's own copies unless the
+     * app can put them back afterwards. Keeping the archive itself is what makes
+     * that possible: ~300 KB in the app's private storage.
+     */
+    private static File storedHotPackage() {
+        return new File(App.i().getFilesDir(), "hot-applied.zip");
+    }
+
+    /** Remember an applied package so the next launch can replay it. */
+    private static void stampStoredHot(File archive) {
+        if (archive == null || !archive.isFile()) return;
+        File target = storedHotPackage();
+        if (archive.getAbsolutePath().equals(target.getAbsolutePath())) return;
+        try (InputStream in = new FileInputStream(archive);
+             OutputStream out = new FileOutputStream(target)) {
+            copy(in, out, null);
+            App.log("hot package kept for replay: " + target.getName());
+        } catch (Throwable error) {
+            App.log("hot package could not be kept: " + error);
+        }
+    }
+
+    /**
+     * Put the user's package back after the baked overlay was written.
+     *
+     * Called from {@link #applyHot} on every launch, immediately after the baked
+     * copy: the APK's files land first, then the package the user applied is
+     * replayed on top when it is genuinely newer ({@link HotVersion#shouldReplay}).
+     * Without this the app says "已应用 1.1.5-t2-sp2" while the disk holds the
+     * older baked files, the update card stops offering the package (the recorded
+     * version matches), and picking the same zip by hand is refused as
+     * "already this version" — a state the user cannot get out of.
+     */
+    private static void replayStoredHot(Context ctx) {
+        File stored = storedHotPackage();
+        if (!stored.isFile()) return;
+        try (ZipFile zip = new ZipFile(stored)) {
+            String storedVersion = hotVersionOf(zip);
+            String bakedVersion = packagedHotVersion();
+            if (!HotVersion.shouldReplay(storedVersion, bakedVersion, App.appVersion(), App.terminalVersion(),
+                    stored.lastModified() > apkLastUpdateTime())) {
+                // The APK carries the same or newer files, the package is from
+                // another line, or it predates this install: drop it and state
+                // what is really on disk.
+                //noinspection ResultOfMethodCallIgnored
+                stored.delete();
+                App.i().prefs.edit().putString(HOT_VERSION_KEY, bakedVersion == null ? "" : bakedVersion).apply();
+                App.log("hot replay: dropped " + storedVersion + " (baked " + bakedVersion + ")");
+                return;
+            }
+            int written = unpackHot(ctx, zip, storedVersion);
+            if (written < 0) return;
+            App.i().prefs.edit().putString(HOT_VERSION_KEY, storedVersion).apply();
+            hotMessage = "已重放热包 " + storedVersion + "（" + written + " 个文件）";
+            App.log("hot replay: re-applied " + storedVersion + " (" + written + " files) after the baked overlay");
+        } catch (Throwable error) {
+            App.log("hot replay failed: " + error);
+        }
+    }
+
+    /**
+     * When this APK was installed or last updated.
+     *
+     * The comparison basis for "is the stored package newer than the app": a
+     * package applied before this build cannot be newer than what the build
+     * ships. Returns 0 when the platform will not say, which callers read as
+     * "keep the user's package and let the version numbers decide".
+     */
+    private static long apkLastUpdateTime() {
+        try {
+            android.content.pm.PackageInfo info = App.i().getPackageManager()
+                    .getPackageInfo(App.i().getPackageName(), 0);
+            return info.lastUpdateTime;
+        } catch (Throwable error) {
+            return 0L;
+        }
+    }
+
+    /** Last hot-package outcome, for the update card to show after a local pick. */
+    private static volatile String hotMessage = "";
+
+    public static String hotMessage() {
+        return hotMessage;
+    }
+
+    /**
+     * Apply a package the user picked from their own storage.
+     *
+     * The other two ways in are the baked asset (this APK's own copy) and the
+     * online fetch; both are one tap. This one exists for exactly the case that
+     * made the old auto-scan so annoying: a file someone was handed, applied on
+     * purpose instead of whenever the app happened to start.
+     *
+     * @param archive a .zip the caller has already copied into app storage
+     * @return a result object shaped like the bridge's other answers
+     */
+    public static JSONObject applyFile(Context ctx, File archive) {
+        JSONObject answer = new JSONObject();
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(archive)) {
+            String version = hotVersionOf(zip);
+            if (version == null) {
+                answer.put("ok", false);
+                answer.put("error", "不是热更新包（缺 hot.json）");
+            } else if (version.equals(App.i().prefs.getString(HOT_VERSION_KEY, ""))) {
+                answer.put("ok", true);
+                answer.put("version", version);
+                answer.put("message", "已经是这个版本（" + version + "）");
+            } else {
+                int written = unpackHot(ctx, zip, version);
+                if (written < 0) {
+                    answer.put("ok", false);
+                    answer.put("error", "解包失败（包内路径不在允许范围？）");
+                } else {
+                    App.i().prefs.edit().putString(HOT_VERSION_KEY, version).apply();
+                    // Keep it: the next launch has to replay this package over the
+                    // baked overlay (see applyHot).
+                    stampStoredHot(archive);
+                    answer.put("ok", true);
+                    answer.put("version", version);
+                    answer.put("files", written);
+                    answer.put("message", "已应用 " + version + "（" + written + " 个文件），重开应用生效");
+                    App.log("hot package applied from file: " + version);
+                }
+            }
+        } catch (Throwable error) {
+            try {
+                answer.put("ok", false);
+                answer.put("error", "读不了这个文件：" + error.getMessage());
+            } catch (Throwable ignored) {
+            }
+        }
+        hotMessage = answer.optString("message", answer.optString("error", ""));
+        return answer;
+    }
+
+    private static String hotVersionOf(java.util.zip.ZipFile zip) {
+        java.util.zip.ZipEntry entry = zip.getEntry("hot.json");
+        if (entry == null) return null;
+        try (InputStream in = zip.getInputStream(entry)) {
+            org.json.JSONObject json = new org.json.JSONObject(readAll(in));
+            return json.optString("version", null);
+        } catch (Throwable error) {
+            return null;
+        }
+    }
+
+    /**
+     * Download a hot package and apply it — the one-tap path.
+     *
+     * Only ever called from a bridge worker thread, and only for the ~50 KB hot
+     * archive: the APK itself is never downloaded in-process, because a 143 MB
+     * transfer belongs to the browser and the system installer.
+     */
+    public static org.json.JSONObject fetchAndApply(Context ctx, String url) {
+        org.json.JSONObject answer = new org.json.JSONObject();
+        try {
+            if (url == null || !url.startsWith("https://")) {
+                answer.put("ok", false);
+                answer.put("error", "只接受 https 地址");
+                return answer;
+            }
+            File staged = new File(App.i().tmpDir, "hot-download.zip");
+            java.net.HttpURLConnection connection =
+                    (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(60000);
+            connection.setInstanceFollowRedirects(true);
+            connection.setRequestProperty("User-Agent", "DHA/" + BuildInfo.APP_VERSION);
+            long total = 0;
+            try (InputStream in = connection.getInputStream();
+                 OutputStream out = new FileOutputStream(staged)) {
+                total = copy(in, out, null);
+            }
+            if (connection.getResponseCode() != 200 || total < 1024) {
+                answer.put("ok", false);
+                answer.put("error", "下载失败 (HTTP " + connection.getResponseCode() + ", " + total + " 字节)");
+                return answer;
+            }
+            try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(staged)) {
+                String version = hotVersionOf(zip);
+                if (version == null) {
+                    answer.put("ok", false);
+                    answer.put("error", "不是有效的热更新包（缺 hot.json）");
+                    return answer;
+                }
+                if (version.equals(App.i().prefs.getString(HOT_VERSION_KEY, ""))) {
+                    answer.put("ok", true);
+                    answer.put("version", version);
+                    answer.put("message", "已经是最新（" + version + "）");
+                    return answer;
+                }
+                int written = unpackHot(ctx, zip, version);
+                if (written < 0) {
+                    answer.put("ok", false);
+                    answer.put("error", "解包失败");
+                    return answer;
+                }
+                App.i().prefs.edit().putString(HOT_VERSION_KEY, version).apply();
+                // Keep the downloaded archive too, so the next launch replays it
+                // after the baked overlay instead of reverting to the APK's copy.
+                stampStoredHot(staged);
+                answer.put("ok", true);
+                answer.put("version", version);
+                answer.put("files", written);
+                answer.put("bytes", total);
+                answer.put("message", "已应用 " + version + "（" + written + " 个文件），重开应用生效");
+                App.log("hot update applied from " + url + ": " + version + " (" + written + " files)");
+            }
+            //noinspection ResultOfMethodCallIgnored
+            staged.delete();
+        } catch (Throwable error) {
+            App.log("hot fetch failed: " + error);
+            try {
+                answer.put("ok", false);
+                answer.put("error", String.valueOf(error.getMessage()));
+            } catch (Throwable ignored) {
+            }
+        }
+        hotMessage = answer.optString("message", answer.optString("error", ""));
+        return answer;
+    }
+
+    /** Version of the hot package received out of band, empty when none was applied. */
+    public static String hotVersion() {
+        return App.i().prefs.getString(HOT_VERSION_KEY, "");
+    }
+
+    /**
+     * Version of the hot package baked into this APK.
+     *
+     * Comparing the two is how the settings page can say whether a received
+     * package is ahead of the app or the app is already ahead of it.
+     */
+    public static String packagedHotVersion() {
+        try {
+            return hotVersionOf(AssetZip.open(App.i(), HOT_ASSET));
+        } catch (Throwable error) {
+            return "";
+        }
+    }
+
+    /**
+     * Write one hot package into the bundled rootfs.
+     *
+     * @param zip source archive, or null to read the packaged asset
+     * @param version version stamp, for logging only
+     * @return number of files written, or -1 when the source could not be read
+     */
+    private static int unpackHot(Context ctx, java.util.zip.ZipFile zip, String version) {
+        App app = App.i();
+        File root = app.bundledHome();
+        if (!root.isDirectory()) return -1;
+        int written = 0;
+        try {
+            if (zip != null) {
+                java.util.Enumeration<? extends java.util.zip.ZipEntry> entries = zip.entries();
+                while (entries.hasMoreElements()) {
+                    java.util.zip.ZipEntry entry = entries.nextElement();
+                    if (entry.isDirectory()) continue;
+                    try (InputStream in = zip.getInputStream(entry)) {
+                        if (writeHotEntry(ctx, root, entry.getName(), in)) written++;
+                    }
+                }
+                return written;
+            }
+        } catch (IOException error) {
+            App.log("hot package unpack failed: " + error);
+            return -1;
+        }
+        try (java.util.zip.ZipInputStream stream =
+                     new java.util.zip.ZipInputStream(ctx.getAssets().open(HOT_ASSET))) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = stream.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                if (writeHotEntry(ctx, root, entry.getName(), stream)) written++;
+            }
+        } catch (IOException error) {
+            App.log("hot overlay failed (continuing with the archived copies): " + error);
+            return -1;
+        }
+        return written;
+    }
+
+    /**
+     * Does this hot entry need the execute bit?
+     *
+     * java.util.zip cannot read the archive's unix attributes, so the mode has to
+     * come from the path: shell scripts and anything that lands in the guest's
+     * bin directory is a command.
+     */
+    private static boolean executableEntry(String name) {
+        return name.endsWith(".sh") || name.startsWith("usr/local/bin/");
+    }
+
+    /** One entry, if it lands inside the rootfs and inside an allowed prefix. */
+    private static boolean writeHotEntry(Context ctx, File root, String name, InputStream in)
+            throws IOException {
+        if (name.equals("hot.json") || name.endsWith("/")) return false;
+        boolean allowed = false;
+        for (String prefix : HOT_ALLOWED_PREFIXES) {
+            if (name.startsWith(prefix)) {
+                allowed = true;
+                break;
+            }
+        }
+        if (!allowed) {
+            App.log("hot package entry refused (outside the allowed prefixes): " + name);
+            return false;
+        }
+        // "@home/" lands in the guest's /root, which is a bind mount from app
+        // storage — the rootfs copy would be shadowed and invisible.
+        File base = root;
+        String relative = name;
+        if (name.startsWith("@home/")) {
+            base = new File(App.i().runDir, "home");
+            relative = name.substring("@home/".length());
+        }
+        File target = new File(base, relative);
+        if (!isInside(base, target)) {
+            App.log("hot package entry refused (escapes the root): " + name);
+            return false;
+        }
+        // Profile files belong to the user and to the plugin market. The baked
+        // seed is only a fresh-install default; overwriting these on every
+        // launch removes third-party plugin registrations while leaving their
+        // node_modules behind. repair-profile.mjs adds missing built-in rows
+        // without replacing the existing document.
+        if (target.exists() && isProtectedProfileEntry(name)) {
+            App.log("hot overlay kept user profile file: " + name);
+            return false;
+        }
+        File parent = target.getParentFile();
+        if (parent != null && !parent.isDirectory() && !parent.mkdirs()) return false;
+        clearLink(target);
+        try (OutputStream out = new FileOutputStream(target)) {
+            copy(in, out, null);
+        }
+        chmod(target, executableEntry(name) ? 0755 : 0644);
+        return true;
+    }
+
+    private static boolean isProtectedProfileEntry(String name) {
+        // Model providers and other composition settings are user data. Protect
+        // every profile/config file while still allowing hot updates to replace
+        // profile node_modules and the separate skills tree.
+        if (!name.startsWith("@home/.dsh/")) return false;
+        if (name.startsWith("@home/.dsh/profiles/") && !name.contains("/node_modules/")) return true;
+        return name.startsWith("@home/.dsh/storages/");
+    }
+
+    /** Legacy single-shot overlay path kept for the asset case. */
+    private static int unusedUnpackLegacy(Context ctx, File root, InputStream source) {
+        int written = 0;
+        try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(source)) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                String name = entry.getName();
+                if (name.endsWith("/") || !isInside(root, new File(root, name))) {
+                    continue;
+                }
+                File target = new File(root, name);
+                File parent = target.getParentFile();
+                if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
+                    continue;
+                }
+                clearLink(target);
+                try (OutputStream out = new FileOutputStream(target)) {
+                    copy(zip, out, null);
+                }
+                chmod(target, executableEntry(name) ? 0755 : 0644);
+                written++;
+            }
+        } catch (IOException error) {
+            App.log("legacy hot unpack failed: " + error);
+            return -1;
+        }
+        return written;
+    }
+
+    /** True when this APK carries the runtime itself (i.e. it is not the slim shell). */
+    public static boolean hasBundledPayload(Context ctx) {
+        try (InputStream probe = ctx.getAssets().open(ASSET)) {
+            return probe != null;
+        } catch (IOException error) {
+            return false;
+        }
+    }
+
+    /** Extract the bundled payload when missing or stale. Safe to call twice. */
+    public static void install(Context ctx, Progress progress) throws IOException {
+        App app = App.i();
+        if (app.isBundledReady()) return;
+        UnpackPlan plan = new UnpackPlan();
+        long startedAt = android.os.SystemClock.uptimeMillis();
+        int[] callbacks = {0};
+
+        // java.util.zip needs a real file, and a staged copy also lets us verify
+        // the byte count instead of trusting an asset stream.
+        //
+        // The copy is the long silent stretch (207 MB out of the APK): it used to
+        // report nothing, which is why the progress bar looked frozen before the
+        // first entry was even read.
+        File staged = new File(app.tmpDir, ASSET);
+        long announced = assetLength(ctx);
+        long copied = 0;
+        try (InputStream raw = ctx.getAssets().open(ASSET);
+             OutputStream out = new FileOutputStream(staged)) {
+            byte[] buffer = new byte[1 << 16];
+            int read;
+            while ((read = raw.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+                copied += read;
+                // Count in 64 KB blocks: UnpackPlan's "entries" floor is 200, and
+                // passing raw bytes would fire a callback on every read().
+                if (plan.due(android.os.SystemClock.uptimeMillis(), copied >> 16, false)) {
+                    report(progress, callbacks, UnpackPlan.permille(copied, announced),
+                            UnpackPlan.label(UnpackPlan.Phase.STAGE, copied, announced));
+                }
+            }
+        }
+        App.log("payload staged: " + copied + " bytes in "
+                + (android.os.SystemClock.uptimeMillis() - startedAt) + "ms ("
+                + callbacks[0] + " progress callbacks)");
+        // Final staging report with its own ratio (not 100%: the next phase starts a
+        // new denominator, and a bar that slams to full then restarts reads as a bug).
+        report(progress, callbacks, UnpackPlan.permille(copied, announced),
+                UnpackPlan.label(UnpackPlan.Phase.STAGE, copied, announced));
+        if (copied < 4096) {
+            throw new IOException("payload asset looks empty (" + copied + " bytes)");
+        }
+        File manifest = new File(app.tmpDir, MANIFEST);
+        try (InputStream raw = ctx.getAssets().open(MANIFEST);
+             OutputStream out = new FileOutputStream(manifest)) {
+            copy(raw, out, null);
+        }
+        unpack(ctx, app.bundledHome(), staged, manifest, App.PAYLOAD_VERSION, progress, plan,
+                startedAt, callbacks);
+    }
+
+    /** Declared size of a bundled asset, or -1 when the platform will not say. */
+    private static long assetLength(Context ctx) {
+        try (android.content.res.AssetFileDescriptor fd = ctx.getAssets().openFd(ASSET)) {
+            return fd.getLength();
+        } catch (IOException error) {
+            return -1;
+        }
+    }
+
+    /** One progress callback, counting them for the install log. */
+    private static void report(Progress progress, int[] callbacks, int permille, String label) {
+        if (progress == null) return;
+        callbacks[0]++;
+        progress.onProgress(permille, 1000, label);
+    }
+
+    // ------------------------------------------------- terminal, pulled on demand
+    //
+    // The slim shell ships without the runtime: the rootfs is 190 MB that only
+    // changes when the terminal version does, so it is published once per
+    // terminal (release tag `t<N>`) and downloaded by whoever needs it. Shell
+    // updates stay a few megabytes because of that split.
+
+    private static volatile String terminalProgress = "";
+    private static volatile boolean terminalBusy;
+
+    /** Human-readable progress of a runtime download, empty when idle. */
+    public static String terminalProgress() {
+        return terminalProgress;
+    }
+
+    public static boolean terminalBusy() {
+        return terminalBusy;
+    }
+
+    public static void fetchTerminal(Context ctx, String url, String manifestUrl) {
+        if (terminalBusy) return;
+        terminalBusy = true;
+        terminalProgress = "准备下载…";
+        Thread worker = new Thread(() -> {
+            try {
+                App app = App.i();
+                File staged = new File(app.tmpDir, ASSET);
+                File manifest = new File(app.tmpDir, MANIFEST);
+                download(url, staged, "运行时");
+                download(manifestUrl, manifest, "清单");
+                terminalProgress = "正在解包（这一步最久）…";
+                unpack(ctx, app.bundledHome(), staged, manifest, "t" + BuildInfo.ROOTFS_VERSION, null);
+                terminalProgress = "已安装";
+                App.log("terminal installed from " + url);
+            } catch (Throwable error) {
+                terminalProgress = "失败：" + error.getMessage();
+                App.log("terminal fetch failed: " + error);
+            } finally {
+                terminalBusy = false;
+            }
+        }, "terminal-fetch");
+        worker.setPriority(Thread.MIN_PRIORITY);
+        worker.start();
+    }
+
+    /** Stream one remote file into app storage, reporting megabytes as it goes. */
+    private static void download(String url, File target, String label) throws IOException {
+        if (url == null || url.isEmpty()) throw new IOException(label + " 地址为空");
+        java.net.HttpURLConnection connection =
+                (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+        connection.setConnectTimeout(20000);
+        connection.setReadTimeout(120000);
+        connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("User-Agent", "DHA/" + BuildInfo.APP_VERSION);
+        long total = connection.getContentLength();
+        long done = 0;
+        try (InputStream in = connection.getInputStream();
+             OutputStream out = new FileOutputStream(target)) {
+            byte[] buffer = new byte[1 << 16];
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+                done += read;
+                if (total > 0) {
+                    terminalProgress = label + " " + (done >> 20) + "/" + (total >> 20) + " MB";
+                }
+            }
+        }
+        if (done < 4096) throw new IOException(label + " 下载不完整（" + done + " 字节）");
+    }
+
+    /** Extract a staged payload + manifest into the distro home. */
+    private static void unpack(Context ctx, File home, File stagedZip, File stagedManifest,
+                               String version, Progress progress) throws IOException {
+        unpack(ctx, home, stagedZip, stagedManifest, version, progress, new UnpackPlan(),
+                android.os.SystemClock.uptimeMillis(), new int[1]);
+    }
+
+    /**
+     * The real thing: phased, paced reporting so the install screen never looks
+     * frozen (staging copy → extraction with entry counts → manifest → done).
+     */
+    private static void unpack(Context ctx, File home, File stagedZip, File stagedManifest,
+                               String version, Progress progress, UnpackPlan plan,
+                               long startedAt, int[] callbacks) throws IOException {
+        deleteTree(home);
+        if (!home.mkdirs() && !home.isDirectory()) {
+            throw new IOException("cannot create " + home);
+        }
+        try (ZipFile zip = new ZipFile(stagedZip)) {
+            long totalEntries = zip.size();
+            plan.enter(UnpackPlan.Phase.EXTRACT);
+            long extractStart = android.os.SystemClock.uptimeMillis();
+            int files = 0;   // real files, for the log (matches "payload extracted: N files")
+            int seen = 0;    // every entry, including directories — zip.size() counts those too,
+                             // so this is what keeps the bar able to reach 100%
+            for (Enumeration<? extends ZipEntry> entries = zip.entries(); entries.hasMoreElements(); ) {
+                ZipEntry entry = entries.nextElement();
+                String name = entry.getName();
+                seen++;
+                File target = new File(home, name);
+                if (!name.equals(".") && !name.equals("./")) {
+                    if (!isInside(home, target)) {
+                        App.log("payload: refusing to extract outside root: " + name);
+                        continue;
+                    }
+                    try {
+                        if (name.endsWith("/")) {
+                            clearLink(target);
+                            target.mkdirs();
+                        } else {
+                            clearLink(target);
+                            target.getParentFile().mkdirs();
+                            try (InputStream in = zip.getInputStream(entry);
+                                 OutputStream out = new FileOutputStream(target)) {
+                                copy(in, out, null);
+                            }
+                            files++;
+                        }
+                    } catch (IOException error) {
+                        App.log("payload: entry " + name + " failed: " + error);
+                        throw error;
+                    }
+                }
+                if (plan.due(android.os.SystemClock.uptimeMillis(), seen, false)) {
+                    report(progress, callbacks, UnpackPlan.permille(seen, totalEntries),
+                            UnpackPlan.label(UnpackPlan.Phase.EXTRACT, seen, totalEntries));
+                }
+            }
+            long extractMs = android.os.SystemClock.uptimeMillis() - extractStart;
+            App.log("payload extracted: " + files + " files in " + extractMs + "ms ("
+                    + callbacks[0] + " progress callbacks so far)");
+            report(progress, callbacks, 1000,
+                    UnpackPlan.label(UnpackPlan.Phase.EXTRACT, seen, totalEntries));
+
+            plan.enter(UnpackPlan.Phase.MANIFEST);
+            report(progress, callbacks, -1, UnpackPlan.label(UnpackPlan.Phase.MANIFEST, 0, 0));
+            long manifestStart = android.os.SystemClock.uptimeMillis();
+            int[] manifestCounts = applyManifest(stagedManifest, home);
+            App.log("payload manifest applied: " + manifestCounts[0] + " symlinks, "
+                    + manifestCounts[1] + " modes in "
+                    + (android.os.SystemClock.uptimeMillis() - manifestStart) + "ms");
+            report(progress, callbacks, 1000, UnpackPlan.label(UnpackPlan.Phase.MANIFEST,
+                    manifestCounts[0], manifestCounts[1]));
+        }
+        writeResolvConf(home);
+        File marker = new File(home, ".payload-" + version);
+        try (OutputStream out = new FileOutputStream(marker)) {
+            out.write(version.getBytes(StandardCharsets.UTF_8));
+        }
+        // Drop markers of runtimes this extraction just replaced. isBundledReady()
+        // only accepts the current payload's marker, so leftovers are harmless — but
+        // they accumulate, and a stale marker is what made "some runtime exists" look
+        // like "the right runtime is installed".
+        File[] stale = home.listFiles((dir, name) ->
+                name.startsWith(".payload-") && !name.equals(marker.getName()));
+        if (stale != null) {
+            for (File old : stale) {
+                //noinspection ResultOfMethodCallIgnored
+                old.delete();
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        stagedZip.delete();
+        plan.enter(UnpackPlan.Phase.DONE);
+        report(progress, callbacks, 1000, UnpackPlan.label(UnpackPlan.Phase.DONE, 0, 0));
+        App.log("payload install finished in "
+                + (android.os.SystemClock.uptimeMillis() - startedAt) + "ms ("
+                + callbacks[0] + " progress callbacks total)");
+    }
+
+    /**
+     * Second pass over the extracted tree: set modes and turn the entries the
+     * manifest marks as symlinks into real ones. The zip wrote them as small
+     * files holding their target path, which is exactly the data needed here.
+     */
+    private static int[] applyManifest(File manifest, File home) throws IOException {
+        int links = 0;
+        int modes = 0;
+        try (InputStream raw = new FileInputStream(manifest);
+             java.io.BufferedReader reader = new java.io.BufferedReader(
+                     new java.io.InputStreamReader(raw, StandardCharsets.UTF_8), 1 << 16)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isEmpty()) continue;
+                String[] parts = line.split("\t", 3);
+                if (parts.length < 2) continue;
+                int mode;
+                try {
+                    mode = Integer.parseInt(parts[0], 8);
+                } catch (NumberFormatException ignored) {
+                    continue;
+                }
+                File target = new File(home, parts[1]);
+                if (!isInside(home, target)) continue;
+                if ((mode & S_IFMT) == S_IFLNK) {
+                    String link = parts.length > 2 ? parts[2] : null;
+                    target.getParentFile().mkdirs();
+                    if (target.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        target.delete();
+                    }
+                    try {
+                        Os.symlink(link == null ? "/" : link, target.getAbsolutePath());
+                        links++;
+                    } catch (ErrnoException error) {
+                        App.log("payload: symlink " + parts[1] + " -> " + link + ": " + error);
+                    }
+                } else {
+                    chmod(target, mode);
+                    modes++;
+                }
+            }
+        }
+        return new int[]{links, modes};
+    }
+
+    private static long copy(InputStream in, OutputStream out, Progress progress) throws IOException {
+        byte[] buffer = new byte[1 << 16];
+        long total = 0;
+        int read;
+        int tick = 0;
+        while ((read = in.read(buffer)) > 0) {
+            out.write(buffer, 0, read);
+            total += read;
+            if (progress != null && (++tick & 0x1f) == 0) {
+                progress.onProgress(total, 0, null);
+            }
+        }
+        return total;
+    }
+
+    private static String readAll(InputStream in) throws IOException {
+        try (InputStream stream = in) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = stream.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+            }
+            return out.toString("UTF-8");
+        }
+    }
+
+    private static void chmod(File file, int mode) {
+        if (mode == 0) return;
+        try {
+            Os.chmod(file.getAbsolutePath(), mode & 07777);
+        } catch (ErrnoException ignored) {
+        }
+    }
+
+    private static boolean isInside(File root, File child) {
+        try {
+            String base = root.getCanonicalPath();
+            String candidate = child.getCanonicalPath();
+            return candidate.equals(base) || candidate.startsWith(base + File.separator);
+        } catch (IOException error) {
+            return false;
+        }
+    }
+
+    /**
+     * The guest has no DHCP client, so DNS has to be seeded. Public resolvers
+     * keep api.deepseek.com reachable even when the carrier resolver is not.
+     */
+    public static void writeResolvConf(File rootfs) {
+        File etc = new File(rootfs, "etc");
+        if (!etc.isDirectory() && !etc.mkdirs()) return;
+        try (OutputStream out = new FileOutputStream(new File(etc, "resolv.conf"))) {
+            out.write(("nameserver 1.1.1.1\n"
+                    + "nameserver 8.8.8.8\n"
+                    + "nameserver 114.114.114.114\n"
+                    + "options timeout:2 attempts:3\n").getBytes(StandardCharsets.UTF_8));
+        } catch (IOException error) {
+            App.log("resolv.conf: " + error);
+        }
+        File hosts = new File(etc, "hosts");
+        if (!hosts.isFile()) {
+            try (OutputStream out = new FileOutputStream(hosts)) {
+                out.write(("127.0.0.1\tlocalhost localhost.localdomain\n"
+                        + "::1\t\tlocalhost ip6-localhost ip6-loopback\n").getBytes(StandardCharsets.UTF_8));
+            } catch (IOException ignored) {
+            }
+        }
+    }
+
+    /**
+     * Remove a tree without ever following a symlink.
+     *
+     * File.isDirectory() resolves links, so an absolute rootfs symlink used to
+     * send this walk out of the sandbox and into whatever it pointed at — on
+     * Android that is the read-only system partition, and a link pointing at
+     * /sdcard would have deleted the user's files. Links are removed as links;
+     * only real directories are descended.
+     */
+    public static void deleteTree(File file) {
+        if (file == null) return;
+        if (isLink(file)) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+            return;
+        }
+        if (!file.exists()) return;
+        if (file.isDirectory()) {
+            File[] children = file.listFiles();
+            if (children != null) {
+                for (File child : children) deleteTree(child);
+            }
+        }
+        //noinspection ResultOfMethodCallIgnored
+        file.delete();
+    }
+
+    private static boolean isLink(File file) {
+        try {
+            return java.nio.file.Files.isSymbolicLink(file.toPath());
+        } catch (Throwable error) {
+            return false;
+        }
+    }
+
+    /**
+     * Drop a pre-existing symlink where a real file or directory must go.
+     *
+     * Reinstalling a different payload over an old one hits this constantly: a
+     * path that used to be a symlink can become a real file, and opening the
+     * link for write follows it out of the app's storage entirely (EROFS on
+     * Android when it lands on the system partition).
+     */
+    private static void clearLink(File target) {
+        if (isLink(target)) {
+            //noinspection ResultOfMethodCallIgnored
+            target.delete();
+        }
+    }
+
+    /** Kept for callers that want to read a small staged file. */
+    public static byte[] read(File file) throws IOException {
+        try (InputStream in = new FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+            }
+            return out.toByteArray();
+        }
+    }
+}

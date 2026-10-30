@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>DSH 悬浮球（状态层，空）</title>
+<style>
+/* This window is full screen, transparent, and never touchable. It used to draw
+   the floating status pill above the ball; the status is drawn by the ball
+   itself now — the ball/bar window stretches off the ball's own square and the
+   text lives inside it (payload/opt/dsh/android/ball-web/composer.html).
+ *
+ * So this page draws nothing at all. It is kept because the window exists and a
+ * WebView with no page logs an error on every start; deleting the window and
+ * this file together is a one-line change in BallService.showVisual() once the
+ * ball has run a while without them.
+ */
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;pointer-events:none}
+</style>
+</head>
+<body>
+<script>
+(function () {
+  "use strict";
+
+  /* The app still evaluates a few BallUI calls at this page in some code paths
+     (an older shell, a stale WebView). They are answered, and do nothing: a page
+     must never throw on a bridge call, and this one has no surface to draw on. */
+  function toApp(method, a) {
+    try {
+      var B = window.DshBall;
+      if (B && typeof B[method] === "function") {
+        return arguments.length > 1 ? B[method](a) : B[method]();
+      }
+    } catch (error) { /* no bridge: stay silent */ }
+    return undefined;
+  }
+  function quiet() { }
+  window.BallUI = {
+    setStatus: quiet, say: quiet, heard: quiet, heardPartial: quiet,
+    setListening: quiet, setSize: quiet, size: quiet, refresh: quiet,
+    expand: quiet, collapse: quiet, collapseDone: quiet, pointer: quiet,
+    requestCollapse: quiet, moveTo: quiet, bubble: quiet, bubbleDone: quiet,
+    isExpanded: function () { return false; },
+    rect: function () { return "none"; }
+  };
+  toApp("log", "ball.html is an empty status layer; the bubble is drawn on the ball");
+})();
+</script>
+</body>
+</html>

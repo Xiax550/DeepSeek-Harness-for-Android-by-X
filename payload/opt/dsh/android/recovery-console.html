@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>恢复控制台</title>
+<!--
+  The on-phone half of recovery mode, served by pty-server.mjs at /recovery.
+
+  Deliberately NOT a terminal emulator. xterm was dropped from this project
+  because its hidden textarea fights Android IMEs (see docs/FINDINGS.md §6), and
+  a recovery console is the worst place to reintroduce that. So: a <pre> for
+  output and a normal <input> for input, one line at a time, with the PTY's
+  TERM set to "dumb" so the shell does not try to repaint the screen.
+
+  It is enough to read a log, edit a file, run apt, restart a service. For
+  full-screen programs (vim, htop, tmux) use the SSH path instead — the app
+  shows the connection command next to the token.
+
+  No HTML is ever built from terminal output: everything goes through
+  textContent, because the shell prints whatever a program, a file or a
+  network response contains.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; background: #0f1013; color: #e6e6e6;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; overscroll-behavior: none;
+  }
+  #wrap { display: flex; flex-direction: column; height: 100%; }
+  #bar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: #17181c; border-bottom: 1px solid #26272c; flex: none;
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+  #dot { width: 8px; height: 8px; border-radius: 50%; background: #d08b2c; flex: none; }
+  #dot.on { background: #3fb950; }
+  #dot.off { background: #d0483c; }
+  #state { flex: 1; color: #9aa0a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  button {
+    font: inherit; color: #e6e6e6; background: #24262c; border: 1px solid #33353c;
+    border-radius: 8px; padding: 6px 10px;
+  }
+  button:active { background: #2f323a; }
+  #out {
+    flex: 1; margin: 0; padding: 10px; overflow: auto; white-space: pre-wrap;
+    word-break: break-word; -webkit-user-select: text; user-select: text;
+  }
+  #keyrow { display: flex; gap: 6px; padding: 0 10px 6px; flex: none; overflow-x: auto; }
+  #keyrow button { padding: 6px 12px; flex: none; }
+  #inrow { display: flex; gap: 6px; padding: 0 10px 10px; flex: none;
+           padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  #cmd {
+    flex: 1; font: inherit; color: #e6e6e6; background: #17181c; border: 1px solid #33353c;
+    border-radius: 8px; padding: 10px;
+  }
+  #cmd:focus { outline: 1px solid #3d6fd6; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="bar">
+    <span id="dot"></span>
+    <span id="state">连接中…</span>
+    <button id="copy">复制</button>
+    <button id="clear">清屏</button>
+    <button id="again">重连</button>
+  </div>
+  <pre id="out"></pre>
+  <div id="keyrow">
+    <button data-key="ctrl-c">Ctrl-C</button>
+    <button data-key="ctrl-d">Ctrl-D</button>
+    <button data-key="ctrl-z">Ctrl-Z</button>
+    <button data-key="tab">Tab</button>
+    <button data-key="up">↑</button>
+    <button data-key="down">↓</button>
+  </div>
+  <div id="inrow">
+    <input id="cmd" autocomplete="off" autocorrect="off" autocapitalize="none"
+           spellcheck="false" enterkeyhint="send" placeholder="输入命令，回车执行">
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  var MAX_TEXT = 400000;               // keep the last ~400k chars, then trim
+  var params = new URLSearchParams(location.search);
+  var token = params.get("token") || "";
+  var cols = 120, rows = 40;
+
+  var out = document.getElementById("out");
+  var state = document.getElementById("state");
+  var dot = document.getElementById("dot");
+  var input = document.getElementById("cmd");
+  var socket = null;
+  var stick = true;                    // autoscroll while the user is at the bottom
+
+  function setState(text, cls) {
+    state.textContent = text;
+    dot.className = cls || "";
+  }
+
+  // Terminal output is untrusted: strip escape sequences, then append as a text
+  // node. Never innerHTML.
+  var ANSI = /\u001b\[[0-9;?]*[ -\/]*[@-~]|\u001b\][^\u0007]*(\u0007|\u001b\\)|\u001b[()][A-Za-z0-9]|\u001b[=>]/g;
+  var buffer = "";
+
+  function write(text) {
+    buffer += text.replace(ANSI, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    if (buffer.length > MAX_TEXT) buffer = buffer.slice(buffer.length - MAX_TEXT);
+    // One text node per chunk would grow the DOM without bound; replace the
+    // single child instead.
+    if (out.firstChild === null) out.appendChild(document.createTextNode(""));
+    out.firstChild.nodeValue = buffer;
+    if (stick) out.scrollTop = out.scrollHeight;
+  }
+
+  out.addEventListener("scroll", function () {
+    stick = out.scrollHeight - out.scrollTop - out.clientHeight < 24;
+  });
+
+  function send(object) {
+    if (socket !== null && socket.readyState === 1) {
+      socket.send(JSON.stringify(object));
+      return true;
+    }
+    return false;
+  }
+
+  function sendText(data) {
+    return send({ type: "input", data: data });
+  }
+
+  function fit() {
+    var perCol = 7.2, perRow = 18;
+    cols = Math.max(40, Math.min(400, Math.floor((window.innerWidth - 20) / perCol)));
+    rows = Math.max(10, Math.min(200, Math.floor((window.innerHeight - 140) / perRow)));
+    send({ type: "resize", cols: cols, rows: rows });
+  }
+
+  function connect() {
+    if (socket !== null) { try { socket.close(); } catch (e) {} socket = null; }
+    if (token === "") { setState("地址里没有 token —— 请从应用面板重新打开", "off"); return; }
+    setState("连接中…", "");
+    var scheme = location.protocol === "https:" ? "wss" : "ws";
+    var url = scheme + "://" + location.host + "/pty?token=" + encodeURIComponent(token) +
+      "&cols=" + cols + "&rows=" + rows + "&term=dumb";
+    var ws;
+    try { ws = new WebSocket(url); } catch (e) { setState("无法建立连接：" + e.message, "off"); return; }
+    ws.binaryType = "arraybuffer";
+    socket = ws;
+
+    ws.onopen = function () {
+      setState("已连接 · 行模式（全屏程序请用 SSH）", "on");
+      fit();
+      input.focus();
+    };
+    ws.onmessage = function (event) {
+      if (typeof event.data === "string") {
+        var message;
+        try { message = JSON.parse(event.data); } catch (e) { write(event.data); return; }
+        if (message.type === "ready") {
+          setState("已连接 · " + (message.shell || "sh"), "on");
+        } else if (message.type === "exit") {
+          setState("shell 已退出（code " + message.code + "）· 点重连开一个新的", "off");
+        } else {
+          write(event.data);
+        }
+        return;
+      }
+      write(new TextDecoder("utf-8").decode(new Uint8Array(event.data)));
+    };
+    ws.onclose = function () {
+      if (socket === ws) { setState("连接已断开 · 点重连", "off"); }
+    };
+    ws.onerror = function () {
+      setState("连接出错（沙箱里的 pty 服务还在吗？）", "off");
+    };
+  }
+
+  var KEYS = {
+    "ctrl-c": "\u0003", "ctrl-d": "\u0004", "ctrl-z": "\u001a", "tab": "\t",
+    "up": "\u001b[A", "down": "\u001b[B"
+  };
+
+  document.getElementById("keyrow").addEventListener("click", function (event) {
+    var key = event.target.getAttribute && event.target.getAttribute("data-key");
+    if (key === null || key === undefined) return;
+    sendText(KEYS[key]);
+    input.focus();
+  });
+
+  input.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    var line = input.value;
+    // The PTY echoes what is written to it, so the command must not also be
+    // echoed here or it would appear twice.
+    if (!sendText(line + "\n")) { setState("没连上，命令没发出去", "off"); return; }
+    input.value = "";
+    stick = true;
+  });
+
+  document.getElementById("clear").addEventListener("click", function () {
+    buffer = "";
+    write("");
+  });
+  document.getElementById("again").addEventListener("click", function () {
+    connect();
+  });
+  document.getElementById("copy").addEventListener("click", function () {
+    var text = buffer;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        setState("已复制到剪贴板", "on");
+      }, function () { setState("复制被系统拒绝，可长按选择文本", "off"); });
+    } else {
+      setState("这个 WebView 不支持复制，请长按选择文本", "off");
+    }
+  });
+
+  window.addEventListener("resize", function () {
+    clearTimeout(window.__fitTimer);
+    window.__fitTimer = setTimeout(fit, 250);
+  });
+
+  // Bringing the app back must not require a reload: reconnect when the page
+  // becomes visible again with a dead socket.
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible" &&
+        (socket === null || socket.readyState > 1)) {
+      connect();
+    }
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

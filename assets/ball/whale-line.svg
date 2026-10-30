@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  线条鲸 — the outline variant, for anyone who finds a solid mark too heavy on the
+  ball. Stroke-only with round caps and joins, so it still reads as intentional at
+  58 dp. Source for payload/opt/dsh/android/ball/whale-line.png.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <g fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5.8,27 C5.8,20.4 12.6,15.6 21.6,15.6 C30.6,15.6 37.4,20.4 37.4,27 C37.4,33.2 30.6,37.4 21.6,37.4 C12.6,37.4 5.8,33.2 5.8,27 Z"/>
+    <path d="M35.6,21.6 L44.8,14.2 C43.2,19.4 43.2,24.6 44.8,30.2 L35.6,25.6"/>
+  </g>
+  <path fill="#FFFFFF" d="M14.4,23.6 m-1.7,0 a1.7,1.7 0 1,0 3.4,0 a1.7,1.7 0 1,0 -3.4,0 Z"/>
+  <g fill="none" stroke="#FFFFFF" stroke-opacity="0.75" stroke-width="2.2" stroke-linecap="round">
+    <path d="M12.6,11.2 C12.2,8.8 14,7.2 16.4,7.6 C18.4,8 19.6,9.6 19.4,11.4"/>
+  </g>
+</svg>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Day palette. Every native surface reads these, and values-night/ overrides
+      them, so the app follows the system light/dark setting exactly like the
+      harness UI it wraps. Hardcoding one of the two is how you get a dark flash
+      on a light phone (or the reverse).
+    -->
+    <color name="boot_background">#FFF7F8FA</color>
+    <!--
+      Window chrome for the *page's* theme, chosen in code (MainActivity
+      applyWindowTheme). Deliberately unqualified: these must NOT flip with
+      values-night/, because the harness page has its own light/dark setting and the
+      phone's dark mode can disagree with it. With targetSdk 28 the decor background
+      is what shows behind the status and navigation bars, so its colour is exactly
+      what decides between "two white edges" and none.
+    -->
+    <color name="window_light">#FFF7F8FA</color>
+    <color name="window_dark">#FF0E0F12</color>
+    <color name="console_background">#FFF1F2F5</color>
+    <color name="console_card">#FFFFFFFF</color>
+    <color name="console_text">#FF1F2329</color>
+    <color name="console_muted">#FF6B7280</color>
+    <color name="console_accent">#FF2563EB</color>
+    <color name="console_danger">#FFD93025</color>
+    <color name="console_ok">#FF188038</color>
+    <!--
+      悬浮球与它的输入面板：蓝色品牌面，不再是黑色底色。
+      球上的白色鲸鱼在亮暗主题里都保持清晰；气泡仍用浅/深浮层面。
+    -->
+    <color name="ball_fill">#FF2563EB</color>
+    <color name="ball_stroke">#24FFFFFF</color>
+    <color name="ball_ring">#66FFFFFF</color>
+    <color name="panel_fill">#FFFFFFFF</color>
+    <color name="panel_stroke">#14000000</color>
+    <color name="panel_field">#FFF4F5F7</color>
+    <color name="panel_field_stroke">#14000000</color>
+    <color name="panel_text">#FF1F2329</color>
+    <color name="panel_hint">#FF8A9099</color>
+    <color name="panel_button">#FF1B1D21</color>
+    <color name="panel_button_text">#FFFFFFFF</color>
+    <color name="panel_button_stroke">#1A000000</color>
+    <!-- 悬浮球上方的气泡：浅色面 + 发丝描边，文字用墨色 -->
+    <color name="ball_bubble">#FFFFFFFF</color>
+    <color name="ball_bubble_stroke">#14000000</color>
+    <color name="ball_bubble_text">#FF1F2329</color>
+</resources>

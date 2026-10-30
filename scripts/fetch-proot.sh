@@ -1,0 +1,43 @@
+#!/bin/sh
+# Fetch the PRoot runtime library the APK embeds (lib/arm64-v8a/libproot.so).
+#
+# The build machine this project grew up on keeps it at
+# /var/minis/mounts/Download/libproot.so, a path a CI runner does not have, and the
+# repository deliberately carries no binaries. So the file is published once as a
+# release asset and fetched here against a pinned sha256.
+#
+# PROVENANCE IS UNCONFIRMED: the copy this pins came from that local mount path,
+# not from a verified upstream release. Its licence is therefore also unconfirmed
+# (PRoot itself is GPL-2.0; this build's exact source has not been checked). See
+# THIRD_PARTY.md — do not treat this as a vetted third-party component yet.
+#
+# Usage: fetch-proot.sh [output-path]   (default build/proot/libproot.so)
+set -eu
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="${1:-$ROOT/build/proot/libproot.so}"
+
+# sha256 of the file shipped in 1.2.0 (and uploaded as the release asset
+# `libproot.so` on tag v1.2.0).
+PROOT_SHA256="f6b0381ab9a066fa620fef0001737fd3cfaf9d22474f013ac48d7861411374ac"
+PROOT_URL="https://github.com/itiswdwa/lanfeiyu/releases/download/v1.2.0/libproot.so"
+
+if [ -f "$OUT" ] && [ "$(sha256sum "$OUT" | cut -d' ' -f1)" = "$PROOT_SHA256" ]; then
+  echo "proot: $OUT is up to date ($(wc -c < "$OUT") bytes)"
+  exit 0
+fi
+
+command -v curl >/dev/null || { echo "proot: need curl" >&2; exit 1; }
+
+mkdir -p "$(dirname "$OUT")"
+echo "proot: downloading libproot.so"
+curl -fsSL "$PROOT_URL" -o "$OUT.tmp"
+
+GOT="$(sha256sum "$OUT.tmp" | cut -d' ' -f1)"
+[ "$GOT" = "$PROOT_SHA256" ] || {
+  echo "proot: sha256 mismatch (got $GOT, want $PROOT_SHA256)" >&2
+  rm -f "$OUT.tmp"
+  exit 1
+}
+mv "$OUT.tmp" "$OUT"
+echo "proot: installed $OUT ($(wc -c < "$OUT") bytes, sha256 verified)"

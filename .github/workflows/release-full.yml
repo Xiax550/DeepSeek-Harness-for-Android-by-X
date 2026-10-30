@@ -1,0 +1,294 @@
+name: release-full
+
+# Build the full update package (the APK that carries payload/rootfs) on GitHub's
+# runners instead of on a phone.
+#
+# Two triggers, one build:
+#
+#   workflow_dispatch     ask for it. A manual run always rebuilds, so "run it
+#                         again" stays a valid way to retry a failed run.
+#   release: published    "a release went out and it has no full APK" — which is
+#                         exactly what `DSH_SLIM_ONLY=1 sh scripts/release.sh`
+#                         produces: the 2 MB slim APK goes up from the phone in
+#                         seconds, and this fills in the 190 MB one afterwards.
+#
+# GitHub has no "an asset was uploaded" event, so the release event is the hook.
+# The decision (has slim, lacks full) lives in scripts/ci_plan.py so it can be
+# tested without a runner; it also recognises releases that are not ours to touch
+# — a `t<N>` terminal release carries payload.zip and nothing else — and skips.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布到哪个 tag（必须已存在且与仓库 VERSION 一致，例如 v1.2.1）"
+        required: true
+        type: string
+      dry_run:
+        description: "只构建、不发布"
+        required: false
+        type: boolean
+        default: false
+  release:
+    types: [published]
+
+# Publishing needs the built-in token's contents:write; no PAT required.
+permissions:
+  contents: write
+
+# One run per tag. Two would race on the same release's assets: both would delete
+# and re-upload dsh-android.apk, and the loser's file wins.
+concurrency:
+  group: release-full-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      build: ${{ steps.plan.outputs.build }}
+      have_slim: ${{ steps.plan.outputs.have_slim }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 1
+
+      - name: 这次要不要构建
+        id: plan
+        env:
+          ASSETS: ${{ toJSON(github.event.release.assets) }}
+          EVENT: ${{ github.event_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          # Passed through the environment, never interpolated into the script:
+          # a release's asset list is user-controlled text.
+          [ -n "$ASSETS" ] || ASSETS='[]'
+          printf '%s' "$ASSETS" > /tmp/assets.json
+          python3 scripts/ci_plan.py \
+            --event "$EVENT" \
+            --tag "${RELEASE_TAG:-$DISPATCH_TAG}" \
+            --assets-json /tmp/assets.json | tee -a "$GITHUB_OUTPUT"
+
+  full:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    # x86_64 on purpose: Google publishes aapt2 for x86_64 (and build_apk.sh runs
+    # it natively here — its qemu branch is only for the arm64 phone). The arm64
+    # content comes from cross-installation (prepare_rootfs.sh passes
+    # --os=linux --cpu=arm64 --libc=glibc) and cross-compiled linkfix (CC).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      # From the event, not from the plan job: job-level `env:` is evaluated before
+      # `needs` is guaranteed to be readable there, and the plan does not rewrite
+      # the tag anyway. Step-level `needs.*` is used for the flags below.
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 1
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Node（与载荷里那份同版本）
+        uses: actions/setup-node@v4
+        with:
+          # prepare_rootfs.sh runs `npm i` with the *host's* npm and only pins the
+          # platform flags; the tree it resolves therefore depends on the runner's
+          # Node. Pinning it to the version the payload itself ships keeps host and
+          # guest on the pair this project tested — and keeps a rebuild on a future
+          # runner image from silently producing a different dependency tree.
+          node-version: "22.23.2"
+
+      - name: Android SDK（android-36 + build-tools）
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0"
+
+      - name: 交叉编译器 + 图标工具 + apksig（按 sha256 固定）
+        run: |
+          sudo apt-get update
+          # librsvg2-bin = 光栅化 assets/*.svg 的 rsvg-convert；python3-pil 是
+          # render_icon.py / render_ball_icons.py 的依赖 —— 第 7 次 CI 就是缺它俩
+          # 死在 "0/7 icons: need rsvg-convert (librsvg) for the icon"。
+          sudo apt-get install -y gcc-aarch64-linux-gnu librsvg2-bin python3-pil
+          rsvg-convert --version
+          python3 -c "from PIL import Image; print('PIL ok')"
+          # apksig 在 **Google Maven**，不在 Maven Central（repo1 上 9.x 一律 404 ——
+          # 第一次真跑就栽在这里）。URL 形式与 scripts/restore-build-toolchain.sh 一致。
+          APKSIG_SHA=7ae2e5980c77d853e3513074ee7c822bbdcdcde1668889d17faa7fe8bc8aa821
+          curl -fsSL -o /tmp/apksig.jar \
+            https://dl.google.com/dl/android/maven2/com/android/tools/build/apksig/9.4.1/apksig-9.4.1.jar
+          echo "$APKSIG_SHA  /tmp/apksig.jar" | sha256sum -c -
+
+      - name: tag 与仓库版本必须一致
+        run: |
+          case "$TAG" in v*) ;; *) echo "tag 不是 v<版本> 形式：$TAG" >&2; exit 1 ;; esac
+          [ "${TAG#v}" = "$(cat VERSION)" ] || {
+            echo "tag=$TAG 与 VERSION=$(cat VERSION) 不一致：拒绝把这一版构建挂到别的 tag 上" >&2
+            exit 1
+          }
+
+      - name: 缓存 rootfs（省掉每次约 10 分钟的下载 + npm i）
+        uses: actions/cache@v4
+        with:
+          path: build/rootfs-ubuntu
+          # Keyed on the overlay inputs as well, not just the two scripts that
+          # build the base tree: assemble_payload.sh *merges* payload/ over the
+          # rootfs, so a cache saved after the merge carries a previous run's
+          # files into the next build — which is how a renamed or deleted file
+          # survives a release.
+          key: rootfs-${{ runner.os }}-${{ hashFiles('scripts/prepare_rootfs.sh', 'scripts/trim_payload.sh', 'payload/**', 'plugin/**', 'profile/**', 'patches/**') }}
+
+      - name: pnpm + PRoot（都不在 git 里，按固定版本/哈希取）
+        run: |
+          sh scripts/fetch-pnpm.sh
+          sh scripts/fetch-proot.sh
+
+      - name: 版本号以已发布的瘦包为准
+        env:
+          REPO: ${{ github.repository }}
+          HAVE_SLIM: ${{ needs.plan.outputs.have_slim }}
+        run: |
+          . scripts/ci_android_env.sh
+          # The slim APK may already be on a device (that is the point of shipping
+          # it first), so the full one must never carry a *lower* versionCode —
+          # Android refuses that install. Read it from the published asset rather
+          # than trusting the checkout: they are built from the same commit in
+          # practice, and when they are not, the asset is what devices have.
+          code=""
+          if [ "$HAVE_SLIM" = "true" ]; then
+            if curl -fsSL -o /tmp/slim.apk \
+                "https://github.com/$REPO/releases/download/$TAG/dsh-android-slim.apk"; then
+              code=$("$AAPT2" dump badging /tmp/slim.apk \
+                | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)
+              echo "  已发布瘦包 $TAG 的 versionCode=$code"
+            else
+              echo "::warning::拉不到瘦包资产，改用仓库里的 VERSION_CODE"
+            fi
+          fi
+          recorded=$(python3 scripts/version.py --field code)
+          [ -n "$code" ] || code="$recorded"
+          if [ "$code" -lt "$recorded" ]; then
+            echo "瘦包 versionCode=$code 小于仓库 VERSION_CODE=$recorded：装过瘦包的设备会拒绝这次全量包" >&2
+            exit 1
+          fi
+          echo "APP_CODE=$code" >> "$GITHUB_ENV"
+
+      # prepare_rootfs.sh 要在 rootfs 里跑 arm64 的 apt（装 git/sshd/tmux 等 guest 工具），
+      # 而 runner 是 x86_64 —— 注册 binfmt 后内核会用 qemu-aarch64-static 执行它们。
+      # 少了这步，prepare_rootfs.sh 会明确跳过安装并让构建失败（它宁可失败，也不发一个
+      # 没有 sshd、恢复模式起不来的载荷）。
+      - name: binfmt（让 x86_64 runner 能执行载荷里的 arm64 二进制）
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: 准备 rootfs（ubuntu-base + 官方 node + guest 工具 + dsh）
+        run: sh scripts/prepare_rootfs.sh
+
+      - name: 组装 payload + 打包
+        run: |
+          # 这一步要交叉编译 liblinkfix.so（guest 是 aarch64），CC 由它给出；
+          # 少了这一行就会用宿主 gcc 编 aarch64 汇编，第 6 次 CI 就死在这儿。
+          . scripts/ci_android_env.sh
+          sh scripts/assemble_payload.sh
+          python3 scripts/make_payload_zip.py build/rootfs-ubuntu build/payload-assets/payload.zip
+
+      - name: 签名密钥（Secrets → 临时文件，用完随 runner 销毁）
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p keystore
+          printf '%s' "$KEYSTORE_B64" | base64 -d > keystore/dsh.p12
+          test -s keystore/dsh.p12
+
+      - name: 构建全量 APK
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          . scripts/ci_android_env.sh
+          sh scripts/build_apk.sh
+
+      - name: 需要时也出一个瘦包
+        if: needs.plan.outputs.have_slim != 'true'
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          . scripts/ci_android_env.sh
+          SLIM=1 sh scripts/build_apk.sh
+
+      - name: 组装发布产物
+        run: |
+          # build_apk.sh already wrote the baked hot package (--base) into
+          # build/hot-assets/. Publishing *that* is the point: the version used to
+          # run make_hot_zip.py a second time without --base, which on an unchanged
+          # tree keeps sp0 — a hot asset equal to the one inside the APK, so no
+          # device would ever see it.
+          cp build/hot-assets/hot.zip out/dsh-hot.zip
+          python3 - <<'PY'
+          import json, zipfile
+          version = open("VERSION").read().strip()
+          with zipfile.ZipFile("out/dsh-hot.zip") as archive:
+              hot = json.loads(archive.read("hot.json"))
+          print(f"hot: {hot['version']} files={hot['files']} hash={hot['hash']}")
+          assert hot["app"] == version, f"热包属于 {hot['app']}，不是 {version}"
+          assert hot["files"] >= 250, "热包条目太少，像是拿错了产物"
+          PY
+
+      - name: 发布（资产挂到触发这次运行的那个 release）
+        if: ${{ !inputs.dry_run }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # release.sh refuses when this disagrees with VERSION, and without it the
+          # tag would be recomputed as v<VERSION> — right here, wrong in general.
+          DSH_RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+        run: sh scripts/release.sh
+
+      - name: 更新 update.json（否则设备看不到这一版）
+        if: ${{ !inputs.dry_run }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The app compares app.versionCode against what it has installed, so a
+          # release that does not touch this file is invisible to every device.
+          # Only the app fields are patched — terminal/hot belong to their own
+          # release channels.
+          python3 scripts/ci_patch_update_json.py \
+            --repo "${{ github.repository }}" \
+            --version "$(cat VERSION)" \
+            --code "$(python3 scripts/version.py --field code)"
+
+      - name: 回读验证（资产存在、latest 归属、URL 可解析）
+        if: ${{ !inputs.dry_run }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          API="https://api.github.com/repos/${{ github.repository }}"
+          curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" "$API/releases/latest" \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print("latest:", d["tag_name"]); [print(" ", a["name"], a["size"]) for a in d["assets"]]'
+          for n in dsh-android.apk dsh-android-slim.apk dsh-hot.zip SHA256SUMS; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -L \
+              "https://github.com/${{ github.repository }}/releases/latest/download/$n")
+            echo "$n -> HTTP $code"
+            [ "$code" = "200" ]
+          done
+          want=$(cat VERSION)
+          curl -sS "https://raw.githubusercontent.com/${{ github.repository }}/main/update.json" \
+            | python3 -c '
+          import json, sys
+          app = json.load(sys.stdin)["app"]
+          print("update.json: app", app["version"], app["versionCode"])
+          assert app["version"] == sys.argv[1], "update.json 的 app.version 不是本次发布的版本"
+          ' "$want"

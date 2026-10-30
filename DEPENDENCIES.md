@@ -1,0 +1,114 @@
+# DHA dependencies and attribution
+
+DHA is a community Android adaptation of existing projects, not a standalone implementation.
+This file identifies the main upstream projects, redistributed files, build-time tools, and
+runtime services. The per-component legal notices and known provenance gaps are in
+[`THIRD_PARTY.md`](THIRD_PARTY.md); canonical license texts are in [`LICENSES/`](LICENSES/README.md).
+
+## Upstream projects and runtime
+
+| Component | Version or source | Use in DHA | License / notes |
+|---|---|---|---|
+| [DHA Android upstream](https://github.com/itiswdwa/dsh-android) | Based on v1.2.1 | Original Android app architecture and inherited implementation; DHA changes are maintained in this repository | MIT; retain upstream attribution in [`LICENSE`](LICENSE) |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | [`@deepseek-ai/dsh@0.2.0-rc.2`](https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.2.0-rc.2) by default; `DSH_VERSION` can override it | Main agent runtime and Web UI, installed into the Ubuntu rootfs at build time | MIT. npm transitive dependencies are resolved at build time and are not all pinned by a checked-in lockfile |
+| [Ubuntu base](https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/) | Ubuntu 24.04.5 arm64 by default; `UBUNTU_VERSION` can override it | Linux userspace executed by PRoot | Each Ubuntu/Debian package keeps its own license and copyright file; the rootfs is fetched during build, not stored in this source tree |
+| [Node.js](https://nodejs.org/en/download) | v22.23.2 by default; `NODE_VERSION` can override it | Runs DeepSeek Harness and Android-side sandbox tooling | MIT |
+| PRoot native library | `libproot.so`, SHA-256 `f6b0381ab9a066fa620fef0001737fd3cfaf9d22474f013ac48d7861411374ac` | Starts the Linux userspace without root | Binary reports PRoot / GPL-2.0-or-later and contains OpenMinis-specific paths. Exact source revision and corresponding source archive are not verified; this remains a binary-release blocker |
+| [Coopanion](https://github.com/Pal-AI-Lab/Coopanion) | Adapted renderer/model code under `payload/opt/dsh/android/ball-web/coo/`; exact upstream commit not recorded | Layered, animated floating character renderer and model | AGPL-3.0-or-later for code. Character-art and trademark restrictions are separately described in that directory's `THIRD_PARTY_NOTICES.md` |
+
+The project lineage and DHA-specific changes are also summarized in [`NOTICE.md`](NOTICE.md)
+and the Chinese README.
+
+## Android libraries bundled in the source tree
+
+These JARs and native libraries are included under `app/libs/` and shipped in the APK.
+SHA-256 values identify the exact files in this source snapshot.
+
+| Files | Maven/project coordinate and version | Purpose | License |
+|---|---|---|---|
+| `app/libs/shizuku-{api,aidl,shared,provider}.jar` | [Shizuku API](https://github.com/RikkaApps/Shizuku-API), `dev.rikka.shizuku:{api,aidl,shared,provider}:13.1.5` | Shizuku privileged Android integration and virtual display support | MIT; copyright and license text in `LICENSES/Shizuku-API-MIT.txt` |
+| `app/libs/hiddenapibypass-6.1.jar` | [AndroidHiddenApiBypass](https://github.com/LSPosed/AndroidHiddenApiBypass), `org.lsposed.hiddenapibypass:hiddenapibypass:6.1` | Access to Android hidden APIs needed for system display integration | Apache-2.0 |
+| `app/libs/okhttp-3.14.9.jar` | [OkHttp](https://github.com/square/okhttp), `com.squareup.okhttp3:okhttp:3.14.9` | HTTP/WebSocket client used by Edge speech synthesis | Apache-2.0 |
+| `app/libs/okio-1.17.2.jar` | [Okio](https://github.com/square/okio), `com.squareup.okio:okio:1.17.2` | I/O dependency used by OkHttp | Apache-2.0 |
+| `app/libs/jna-5.13.0.jar`, `app/libs/arm64-v8a/libjnidispatch.so` | [JNA](https://github.com/java-native-access/jna), `net.java.dev.jna:jna:5.13.0` | Native interface used by Vosk Android | Dual-licensed Apache-2.0 / LGPL-2.1; this project uses the Apache-2.0 option |
+| `app/libs/vosk-android-0.3.47.jar`, `app/libs/arm64-v8a/libvosk.so` | [Vosk Android](https://github.com/alphacep/vosk-android), `com.alphacephei:vosk-android:0.3.47` | On-device offline speech recognition | Apache-2.0 |
+
+| Additional bundled file | Source and version | Purpose | License |
+|---|---|---|---|
+| `app/assets/vosk-model-small-cn.zip` | [Vosk Chinese models](https://alphacephei.com/vosk/models), `vosk-model-small-cn-0.22`; SHA-256 `2b34e3c3eb2c61105b1affc4863407965dbf968c63ceb5cd46685f9bd627434a` | Offline Mandarin recognition model | Apache-2.0 |
+
+Full SHA-256 values for the Android libraries and native binaries:
+
+```text
+6f50c4d202acb8152901716df3a1f94b2181e33aa0d14c9bdb2579cbc21c0832  app/libs/hiddenapibypass-6.1.jar
+811239995278d7369a1e703b91f6660ee568bb4ecc158b31326f8507a017c545  app/libs/jna-5.13.0.jar
+2570fab55515cbf881d7a4ceef49fc515490bc027057e666776a2832465aeca0  app/libs/okhttp-3.14.9.jar
+f80ce42d2ffac47ad4c47e1d6f980d604d247ceb1a886705cf4581ab0c9fe2b8  app/libs/okio-1.17.2.jar
+584945c98f21b0c4e3ccdb74b51528f89852174c30bb2a4786c43a8ca456e496  app/libs/shizuku-aidl.jar
+4315fcd853f487321548be5a997749fe43105fa29aaaa6f6e7a8cdc958a38357  app/libs/shizuku-api.jar
+35aee86b938cb8d06b315c9d73c30f41ec7cfdc10009a5de83733bc5c4db5051  app/libs/shizuku-provider.jar
+8557b8c715d374f8da18e148ca5b971d1c7435e91447e6d4f7664403c7328760  app/libs/shizuku-shared.jar
+b3e798969ea0299a31f986266da1ba6118dd976b74e9fffd3925ccfb0faf98d5  app/libs/vosk-android-0.3.47.jar
+95fd6129757ceae73472b014c0c7e23a27a193adc4c355693706998aa4757be8  app/libs/arm64-v8a/libjnidispatch.so
+29ddc0282af7e44c790f2a7dfbcf7ed9e557361dc1acf609142c89b792d714e1  app/libs/arm64-v8a/libvosk.so
+```
+
+## Plugins and vendored JavaScript packages
+
+| Component | Version / path | Use | License and provenance |
+|---|---|---|---|
+| DHA Android plugin | `plugin/dsh-plugin-android/`, version `1.0.0` | Android controls and integration in the Harness UI | Project code, MIT |
+| Agent Browser Viewer | `payload/home/.dsh/profiles/web/node_modules/@local/agent-browser-viewer/`, version `1.0.0` | Displays the agent browser's latest screenshot in the Harness sidebar | Project-local source restored from the existing payload; MIT under the project license |
+| DHA Ball Summarizer | `payload/home/.dsh/profiles/web/node_modules/@local/dsh-ball-summarizer/`, version `2.0.0` | Adds a required `ball_doing` activity status to tool calls and sends it to the floating character | Project-local source restored from the existing payload; MIT under the project license |
+| [dshmarket](https://github.com/dsh-market/dsh-market) | `dshmarket@1.66.21`, vendored under `payload/home/.dsh/profiles/web/node_modules/` | In-app plugin market | MIT; source archive tarball SHA-256 `f75bfc1206c91b0d82b939334f1457a5c515cb0cadde75e69b15f8ee87e3da38`; copyright/license notice is included in `LICENSES/dshmarket-MIT.txt` |
+| [meow-memory](https://github.com/Phant0Meow/dsh-meow-memory) | `meow-memory@0.31.0`, vendored under `payload/opt/dsh/android/builtin-meow-memory/` | Built-in local memory plugin, seeded on first install and not used to downgrade a newer installed copy | MIT; its package includes its own `LICENSE` |
+| `undici` | `7.30.0`, vendored beside dshmarket | HTTP runtime dependency of dshmarket | MIT; package and fetch-subcomponent texts are in `LICENSES/undici-MIT.txt` and `LICENSES/undici-web-fetch-MIT.txt` |
+| `js-yaml` | `4.3.2`, vendored beside dshmarket | YAML parsing dependency of dshmarket | MIT; text in `LICENSES/js-yaml-MIT.txt` |
+| `argparse` | `2.0.1`, vendored beside dshmarket | Dependency of js-yaml | Python-2.0; text in `LICENSES/argparse-Python-2.0.txt` |
+| [`@xterm/xterm`](https://github.com/xtermjs/xterm.js) | `5.5.0`, installed into rootfs during build | Terminal emulator UI | MIT |
+| [`@xterm/addon-fit`](https://github.com/xtermjs/xterm.js) | `0.10.0`, installed into rootfs during build | Terminal viewport sizing | MIT |
+| [`@xterm/addon-canvas`](https://github.com/xtermjs/xterm.js) | `0.7.0`, installed into rootfs during build | Terminal canvas rendering | MIT |
+
+The Harness package brings a much larger transitive npm dependency tree. Those packages
+are downloaded when the rootfs is built and are not individually copied into this source
+repository. Their package-level license metadata is retained in the built rootfs where
+available. For a release, generate and archive an SBOM from the exact built payload; do not
+treat this top-level list as a complete transitive SBOM.
+
+The two local plugin packages above are now present in the source tree, including
+their manifests and source files; they are no longer only references in profile
+configuration.
+
+## Build and test tools
+
+| Tool | Version used by the build scripts | Use |
+|---|---|---|
+| [Android SDK Build Tools](https://developer.android.com/tools) | `35.0.0` | `aapt2`, D8 and `apksigner` |
+| Android SDK platform | `android-35` | Android compile-time API |
+| JDK | 17 in the documented Windows setup | `javac`, `java`, `keytool` |
+| [Python 3](https://www.python.org/) and [Pillow](https://python-pillow.org/) | Installed on the build host | Icon generation and packaging |
+| Bash/POSIX shell, `curl`, `tar`, `xz`, `npm` | Host tools | Linux rootfs and runtime assembly |
+| Node.js | Host installation | Plugin tests and packaging helpers |
+
+Build instructions and the source of each downloaded artifact are in
+[`docs/BUILD.md`](docs/BUILD.md), `scripts/prepare_rootfs.sh`,
+`scripts/fetch-proot.sh`, and `scripts/fetch-pnpm.sh`.
+
+## Network services
+
+These are runtime/build services, not libraries included in the source tree:
+
+- npm registry and Ubuntu/Node.js distribution hosts are contacted during a full rootfs build.
+- The plugin market queries its configured catalog/update sources; defaults and privacy/
+  permission implications are documented in [`THIRD_PARTY.md`](THIRD_PARTY.md) and
+  [`docs/preinstalled-plugins.md`](docs/preinstalled-plugins.md).
+- Edge speech synthesis uses Microsoft's Edge online speech service. It requires network
+  access; it is separate from the bundled offline Vosk recognition engine.
+
+## Reproducibility and release notes
+
+Direct components listed above are versioned. The Ubuntu apt package set and the complete
+transitive npm tree are not pinned by a single lockfile in this repository, so builds from
+different dates may differ. Record the generated payload manifest and attach a per-release
+SBOM/checksum inventory. Never publish a build as fully source-complete while the PRoot
+source gap above remains unresolved.

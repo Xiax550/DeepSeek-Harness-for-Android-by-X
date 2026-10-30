@@ -1,0 +1,44 @@
+# 构建产物与本地状态（不提交）
+build/
+out/
+lab/
+
+# 签名密钥：这是应用的身份，泄露等于别人可以署你的名字发更新
+keystore/
+*.p12
+*.jks
+*.keystore
+
+# 载荷与二进制
+*.apk
+*.aab
+*.zip
+!hot.zip
+!app/assets/vosk-model-small-cn.zip
+
+# 生成文件
+app/java/dev/dsh/android/BuildInfo.java
+app/java/com/dha/harness/BuildInfo.java
+app/res/mipmap-*/
+app/res/drawable-nodpi/ic_dha_notification.png
+app/res/drawable/ic_whale_monochrome.xml
+app/res/values/icon_background.xml
+app/res/values-night/icon_background.xml
+
+# 依赖与临时物
+node_modules/
+
+# 载荷里预装的 @local 插件是发行内容，必须进 git —— 上一行的 node_modules/ 会连它们一起忽略，
+# 结果是"工作树有、仓库没有"：本地出包正常（打包读工作树），但 CI/新克隆出的载荷会缺这三个插件。
+!payload/home/.dsh/profiles/web/node_modules/
+!payload/home/.dsh/profiles/web/node_modules/**
+*.log
+.DS_Store
+
+# 取回来的运行时工件，不进 git（见 scripts/fetch-pnpm.sh）：41MB 的自包含 pnpm 二进制，
+# 只有升级 pnpm 才会变。payload 组装时按固定版本 + 双哈希校验下载。
+payload/usr/local/bin/pnpm
+
+# Python 缓存（make_hot_zip 被 import 过会生成）
+__pycache__/
+*.pyc
