@@ -6,10 +6,10 @@
 # repository deliberately carries no binaries. So the file is published once as a
 # release asset and fetched here against a pinned sha256.
 #
-# PROVENANCE IS UNCONFIRMED: the copy this pins came from that local mount path,
-# not from a verified upstream release. Its licence is therefore also unconfirmed
-# (PRoot itself is GPL-2.0; this build's exact source has not been checked). See
-# THIRD_PARTY.md — do not treat this as a vetted third-party component yet.
+# Provenance: the pinned ELF is byte-identical to the PRoot entry in the public
+# OpenMinis 1.13 APK. It is GPL-2.0-or-later and its exact corresponding source
+# is recorded in docs/BUILD-PROOT.md. Run scripts/make-proot-source.sh and attach
+# the resulting source bundle to releases containing this binary.
 #
 # Usage: fetch-proot.sh [output-path]   (default build/proot/libproot.so)
 set -eu
@@ -17,8 +17,7 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/build/proot/libproot.so}"
 
-# sha256 of the file shipped in 1.2.0 (and uploaded as the release asset
-# `libproot.so` on tag v1.2.0).
+# sha256 of the file shipped in 1.2.0 and also present in OpenMinis 1.13.
 PROOT_SHA256="f6b0381ab9a066fa620fef0001737fd3cfaf9d22474f013ac48d7861411374ac"
 PROOT_URL="https://github.com/itiswdwa/lanfeiyu/releases/download/v1.2.0/libproot.so"
 

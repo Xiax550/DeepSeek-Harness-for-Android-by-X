@@ -30,9 +30,12 @@ It runs a Linux userspace inside an Android application and exposes the Harness 
 This repository is a community-maintained fork. It is not affiliated with or endorsed by DeepSeek.
 The current source snapshot is `1.2.50` (`versionCode 10263`).
 
-The source tree is prepared for public review, but the full APK distribution still has a documented
-corresponding-source gap for the customized `libproot.so`. Read
-[`OPEN_SOURCE_COMPLIANCE.md`](OPEN_SOURCE_COMPLIANCE.md) before publishing a binary release.
+The customized `libproot.so` is matched byte-for-byte to the public OpenMinis `1.13` release;
+its exact app source, PRoot submodule and build recipe are recorded in
+[`docs/BUILD-PROOT.md`](docs/BUILD-PROOT.md). The release also carries the generated
+`proot-src-8cf13e99.tar.gz` corresponding-source bundle. Read
+[`OPEN_SOURCE_COMPLIANCE.md`](OPEN_SOURCE_COMPLIANCE.md) for the remaining release checks,
+including the exact-payload SBOM.
 
 ## Build
 
@@ -75,7 +78,7 @@ from the exact payload.
 
 1. Run JVM and plugin tests.
 2. Verify the APK with `apksigner`.
-3. Attach the corresponding source archive to every binary release.
+3. Attach both the project source archive and `proot-src-8cf13e99.tar.gz`.
 4. Keep `LICENSE`, `NOTICE.md`, `THIRD_PARTY.md`, `OPEN_SOURCE_COMPLIANCE.md` and `LICENSES/`.
 5. Never commit API keys, credentials, signing keys, APKs, build output or device logs.
 6. Set `DSH_REPO=owner/repository` and `DSH_GIT_REMOTE` before using release scripts.

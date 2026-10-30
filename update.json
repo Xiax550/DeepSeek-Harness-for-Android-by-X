@@ -3,20 +3,20 @@
   "app": {
     "version": "1.2.50",
     "versionCode": 10263,
-    "url": "https://github.com/itiswdwa/lanfeiyu/releases/latest/download/DHA.apk",
-    "slim": "https://github.com/itiswdwa/lanfeiyu/releases/latest/download/DHA-slim.apk",
-    "page": "https://github.com/itiswdwa/lanfeiyu/releases/latest"
+    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA.apk",
+    "slim": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA-slim.apk",
+    "page": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest"
   },
   "terminal": {
     "version": "3",
     "full": "1.2.50-t3",
     "tag": "t3",
-    "url": "https://github.com/itiswdwa/lanfeiyu/releases/download/t3/payload.zip",
-    "manifest": "https://github.com/itiswdwa/lanfeiyu/releases/download/t3/payload.manifest"
+    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/download/t3/payload.zip",
+    "manifest": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/download/t3/payload.manifest"
   },
   "hot": {
     "version": "1.2.50-t3-sp8125",
-    "url": "https://github.com/itiswdwa/lanfeiyu/releases/latest/download/dsh-hot.zip",
-    "manifest": "https://raw.githubusercontent.com/itiswdwa/lanfeiyu/main/update.json"
+    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/dsh-hot.zip",
+    "manifest": "https://cdn.jsdelivr.net/gh/Xiax550/DeepSeek-Harness-for-Android-by-X@main/update.json"
   }
 }

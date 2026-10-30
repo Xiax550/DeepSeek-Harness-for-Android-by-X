@@ -187,3 +187,20 @@ android-shizuku-cli exec 'cp /sdcard/Download/dsh-android.apk /data/local/tmp/ &
 - 应用日志：设置 → 安卓沙箱 → 日志面板（同时写在 `files/logs/server.log`）。
 - harness 自己的启动诊断写在 guest 的 `~/.dsh/logs/startup-*.log`。
 - 终端里可以直接进沙箱看现场：`ls /opt/dsh`、`cat /root/.dsh/profiles/web/cordis.patch.yml`。
+
+## 许可文本打包
+
+`build_apk.sh` 里 `pack_apk.py` 的参数列表决定 APK 内 `assets/licenses/` 的内容。
+**`LICENSES/` 下的每一份文本都要进包**：MIT 与 Python-2.0 的声明要求随分发副本一起提供，
+而 APK 就是那个副本。新增 vendored 依赖时同时做三件事：
+
+1. 往 `LICENSES/` 放它的许可文本，并在 `LICENSES/README.md` 的指针表里加一行；
+2. 在 `THIRD_PARTY.md` 加一行（版本 / 来源 / 许可 / 对应源码位置）；
+3. 在 `scripts/build_apk.sh` 的 `assets/licenses/...` 参数里加一条。
+
+打包后自检（发布清单第 10 条）：
+
+```sh
+unzip -p build/dha.apk assets/licenses/THIRD_PARTY.md | cmp - THIRD_PARTY.md
+unzip -l build/dha.apk 'assets/licenses/*'   # 应列出 LICENSES/ 里全部文本
+```

@@ -14,14 +14,15 @@
 
 ## 发布前必须处理
 
-当前 `THIRD_PARTY.md` 仍记录一个发布阻塞项：`libproot.so` 是 GPL-2.0-or-later
-组件，但对应的 OpenMinis 定制源码归档尚未找到。若发布包含该二进制的 APK 或完整
-payload，必须先提供对应源码，或者改用能够提供对应源码的 PRoot 构建。
+`libproot.so` 的对应源码已经定位：当前 ELF 与 OpenMinis 官方 `1.13` 安装包中的
+PRoot 条目逐字节一致；源码提交、PRoot 子模块、talloc 与构建脚本均固定在
+`docs/BUILD-PROOT.md`。发布时用 `scripts/make-proot-source.sh` 生成
+`proot-src-8cf13e99.tar.gz` 并附在 Release。
 
-在该问题解决前，公开发布时应：
+发布时仍应：
 
 1. 发布源码仓库和许可证文件；
-2. 不宣称 APK 已经完成全部 GPL 对应源码义务；
+2. 附上 PRoot 对应源码归档，并保留 GPL 版权与许可证文本；
 3. 不把签名密钥、API Key、设备日志或本地配置上传到 GitHub；
 4. 在 Release 页面明确说明当前构建限制。
 

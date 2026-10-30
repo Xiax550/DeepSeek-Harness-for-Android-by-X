@@ -29,9 +29,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import version  # noqa: E402  (sibling script: the one definition of the version model)
 
-REPO = os.environ.get("DHA_REPO", "itiswdwa/lanfeiyu")
+REPO = os.environ.get("DHA_REPO", "Xiax550/DeepSeek-Harness-for-Android-by-X")
 BASE = f"https://github.com/{REPO}"
-RAW = f"https://raw.githubusercontent.com/{REPO}/main"
+RAW = f"https://cdn.jsdelivr.net/gh/{REPO}@main"  # raw.githubusercontent.com 在部分网络下不可达（实测 fetch failed），用 jsDelivr 镜像
 
 
 def hot_version(hot_zip: Path) -> str:

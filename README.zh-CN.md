@@ -20,6 +20,14 @@
 - **签名**：`CN=DHA`（独立正式签名，非 debug）
 - **上游与依赖**：包含 DeepSeek Harness、Coopanion 衍生悬浮角色、Shizuku、Vosk 等第三方组件；来源、版本、用途、许可证和未解决事项见 [`DEPENDENCIES.md`](DEPENDENCIES.md) 与 [`THIRD_PARTY.md`](THIRD_PARTY.md)
 
+## 源码与许可
+
+自有代码采用 MIT；APK 同时包含 Apache-2.0、GPL-2.0-or-later、GPL-3.0 和
+AGPL-3.0-or-later 组件。PRoot 对应的 OpenMinis 应用提交、PRoot 子模块和
+构建脚本已固定在 [`docs/BUILD-PROOT.md`](docs/BUILD-PROOT.md)，发布时同时提供
+`proot-src-8cf13e99.tar.gz`。完整的发布边界和仍待生成的最终 payload SBOM
+见 [`OPEN_SOURCE_COMPLIANCE.md`](OPEN_SOURCE_COMPLIANCE.md)。
+
 ## 这是什么
 
 官方 harness 在电脑上是 `npx @deepseek-ai/dsh web`。本工程把整套运行时

@@ -7,9 +7,20 @@
 *.js text eol=lf
 *.mjs text eol=lf
 *.py text eol=lf
+*.xml text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
 *.ps1 text eol=crlf
 *.png binary
 *.jpg binary
 *.zip binary
 *.jar binary
 *.so binary
+# 无扩展名的版本文件 + 生成物：固定 LF，否则 SOURCE_SHA256SUMS.txt 在
+# Windows(autocrlf) 检出上重算会全线不符（见 docs/AUDIT-2026-10-30.md P1-4）
+VERSION text eol=lf
+VERSION_CODE text eol=lf
+ROOTFS_VERSION text eol=lf
+HOT text eol=lf
+SOURCE_SHA256SUMS.txt text eol=lf
+SOURCE_FILE_MANIFEST.txt text eol=lf

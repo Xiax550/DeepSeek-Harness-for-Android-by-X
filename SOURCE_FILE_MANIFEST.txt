@@ -104,6 +104,8 @@ assets/ball/whale-line.svg
 assets/dha-icon-source.png
 assets/whale.svg
 docs/ARCHITECTURE.md
+docs/AUDIT-2026-10-30.md
+docs/BUILD-PROOT.md
 docs/BUILD.md
 docs/CI.md
 docs/FINDINGS.md
@@ -111,6 +113,7 @@ docs/HANDOFF-history.md
 docs/RECOVERY.md
 docs/UPGRADE-DSH.md
 docs/author-attribution-test.mjs
+docs/compliance-test.mjs
 docs/dsh-pi-ai-media-test.mjs
 docs/images/icon-day.png
 docs/images/icon-night.png
@@ -522,6 +525,7 @@ scripts/Sign.java
 scripts/_release_lock.sh
 scripts/assemble_payload.sh
 scripts/asset-replace.py
+scripts/build-proot.sh
 scripts/build_apk.ps1
 scripts/build_apk.sh
 scripts/build_linkfix.sh
@@ -534,6 +538,7 @@ scripts/fetch-pnpm.sh
 scripts/fetch-proot.sh
 scripts/force_rmtree.py
 scripts/hot_release_body.py
+scripts/make-proot-source.sh
 scripts/make_hot_zip.py
 scripts/make_hot_zip_windows.py
 scripts/make_icons.py
@@ -543,6 +548,7 @@ scripts/make_update_manifest.py
 scripts/pack_apk.py
 scripts/prepare_rootfs.sh
 scripts/refresh_release_notes.sh
+scripts/regen-source-sums.sh
 scripts/release.sh
 scripts/release_hot.sh
 scripts/release_notes.py

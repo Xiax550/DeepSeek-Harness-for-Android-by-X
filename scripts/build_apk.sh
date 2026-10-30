@@ -171,6 +171,12 @@ python3 "$ROOT/scripts/pack_apk.py" "$BUILD/base.apk" "$BUILD/unsigned.apk" \
   "assets/licenses/AGPL-3.0.txt:$ROOT/LICENSES/AGPL-3.0.txt" \
   "assets/licenses/GPL-2.0.txt:$ROOT/LICENSES/GPL-2.0.txt" \
   "assets/licenses/GPL-3.0.txt:$ROOT/LICENSES/GPL-3.0.txt" \
+  "assets/licenses/Shizuku-API-MIT.txt:$ROOT/LICENSES/Shizuku-API-MIT.txt" \
+  "assets/licenses/dshmarket-MIT.txt:$ROOT/LICENSES/dshmarket-MIT.txt" \
+  "assets/licenses/undici-MIT.txt:$ROOT/LICENSES/undici-MIT.txt" \
+  "assets/licenses/undici-web-fetch-MIT.txt:$ROOT/LICENSES/undici-web-fetch-MIT.txt" \
+  "assets/licenses/js-yaml-MIT.txt:$ROOT/LICENSES/js-yaml-MIT.txt" \
+  "assets/licenses/argparse-Python-2.0.txt:$ROOT/LICENSES/argparse-Python-2.0.txt" \
   "assets/hot.zip:$BUILD/hot-assets/hot.zip"
 
 echo "== 6/7 keystore =="

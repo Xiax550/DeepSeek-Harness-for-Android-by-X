@@ -12,13 +12,14 @@ Usage: asset-replace.py <tag> <file> <asset-name> <content-type> [<file> <name> 
 Token: /root/.dsh/gh-token (never printed, never put on a command line).
 """
 import json
+import os
 import pathlib
 import sys
 import time
 import urllib.error
 import urllib.request
 
-REPO = "itiswdwa/lanfeiyu"
+REPO = os.environ.get("DHA_REPO", "Xiax550/DeepSeek-Harness-for-Android-by-X")
 TOKEN = pathlib.Path("/root/.dsh/gh-token").read_text().strip()
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Accept": "application/vnd.github+json"}
 
