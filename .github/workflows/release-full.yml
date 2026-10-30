@@ -188,7 +188,7 @@ jobs:
       # 少了这步，prepare_rootfs.sh 会明确跳过安装并让构建失败（它宁可失败，也不发一个
       # 没有 sshd、恢复模式起不来的载荷）。
       - name: binfmt（让 x86_64 runner 能执行载荷里的 arm64 二进制）
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
