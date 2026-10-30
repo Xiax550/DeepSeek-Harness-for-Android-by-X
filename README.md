@@ -2,6 +2,16 @@
 
 Author and maintainer of this DHA fork: **夏侯玲文**. Upstream and third-party authors retain their attribution; see [AUTHORS.md](AUTHORS.md) and [NOTICE.md](NOTICE.md).
 
+## 开发说明与致谢
+
+本 App 使用 AI 辅助开发。如遇报错，欢迎提交 Issue，但不保证一定修复。作者最近较忙，可能要等以后有时间再处理。
+
+在此感谢 DeepSeek、ChatGPT 大模型在开发过程中提供的协助。
+
+This app was developed with AI assistance. Bug reports are welcome through Issues,
+but fixes are not guaranteed. The maintainer is currently busy and may address them later.
+Thanks to DeepSeek and ChatGPT for their assistance during development.
+
 DHA is an unofficial Android distribution of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
 It runs a Linux userspace inside an Android application and exposes the Harness web UI through WebView.
 
