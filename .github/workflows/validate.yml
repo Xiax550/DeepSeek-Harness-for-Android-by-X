@@ -1,0 +1,85 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.23.2"
+
+      - name: Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate workflow YAML
+        run: |
+          node - <<'JS'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const yaml = require('./payload/home/.dsh/profiles/web/node_modules/js-yaml');
+          for (const name of fs.readdirSync('.github/workflows').filter((n) => n.endsWith('.yml')).sort()) {
+            const file = path.join('.github/workflows', name);
+            yaml.load(fs.readFileSync(file, 'utf8'));
+            console.log('YAML OK:', file);
+          }
+          JS
+
+      - name: Shell and Python syntax
+        run: |
+          find . -type f -name '*.sh' -not -path './build/*' -not -path './out/*' \
+            -print0 | xargs -0 -n1 bash -n
+          python - <<'PY'
+          from pathlib import Path
+
+          roots = [Path("scripts"), Path("docs"), Path("patches")]
+          files = sorted(path for root in roots if root.exists()
+                         for path in root.rglob("*.py"))
+          for path in files:
+              compile(path.read_text(encoding="utf-8"), str(path), "exec")
+          print("Python syntax OK:", len(files), "files")
+          PY
+
+      - name: Repository tests
+        run: |
+          sh docs/run-unit-tests.sh
+          python docs/release-notes-test.py
+          python docs/release-config-test.py
+          node docs/author-attribution-test.mjs
+          node docs/compliance-test.mjs
+          node docs/repair-profile-test.mjs
+          node docs/link-test.mjs
+          node scripts/check-legacy-market-residue.mjs
+
+      - name: Source manifest
+        run: bash scripts/regen-source-sums.sh --check

@@ -26,18 +26,34 @@ PRoot 条目逐字节一致；源码提交、PRoot 子模块、talloc 与构建�
 3. 不把签名密钥、API Key、设备日志或本地配置上传到 GitHub；
 4. 在 Release 页面明确说明当前构建限制。
 
+应用 Release 使用版本化资产名：
+
+| 内容 | 名称 |
+|---|---|
+| 全量 APK | `DHA-<版本>-arm64.apk` |
+| 瘦包 | `DHA-<版本>-slim.apk` |
+| 热包 | `DHA-<版本>-hot.zip` |
+| 校验和 | `SHA256SUMS.txt` |
+
+`update.json`、`scripts/release.sh`、`scripts/release_hot.sh` 和
+`.github/workflows/release-full.yml` 必须同时更新；`validate` 工作流会检查这些名称。
+
 ## 本地检查
 
 ```powershell
 # JVM 回归测试
 javac -version
 sh docs/run-unit-tests.sh
+python3 docs/release-config-test.py
 
 # Windows APK 构建（需要本机 Android SDK、JDK、Python 和外部 payload 资产）
 pwsh -File scripts\build_apk.ps1 -SkipIcons
 ```
 
 如果 Windows 执行策略阻止 `.ps1`，请按 `docs/BUILD.md` 中的方式运行脚本。
+
+仓库的主分支保护禁止强制推送和删除。GitHub Actions 的 `validate` 任务应保持通过，
+并可设为 `main` 的必需状态检查。
 
 ## GitHub 首次发布建议
 

@@ -181,6 +181,10 @@ python3 "$ROOT/scripts/pack_apk.py" "$BUILD/base.apk" "$BUILD/unsigned.apk" \
 
 echo "== 6/7 keystore =="
 if [ ! -f "$KEYSTORE" ]; then
+  if [ "${REQUIRE_KEYSTORE:-0}" = "1" ]; then
+    echo "缺少 $KEYSTORE；CI 必须使用与现有安装一致的签名密钥，拒绝自动生成新身份" >&2
+    exit 1
+  fi
   mkdir -p "$(dirname "$KEYSTORE")"
   keytool -genkeypair -keystore "$KEYSTORE" -storetype PKCS12 \
     -storepass "$KS_PASS" -keypass "$KS_PASS" -alias "$KS_ALIAS" \

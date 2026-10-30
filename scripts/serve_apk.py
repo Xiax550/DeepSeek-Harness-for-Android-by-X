@@ -21,7 +21,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-DEFAULT_FILE = Path("/var/minis/mounts/Download/dsh-android.apk")
+DEFAULT_FILE = Path("/var/minis/mounts/Download/DHA.apk")
 DEFAULT_PORT = 8777
 
 
@@ -55,8 +55,8 @@ class Handler(BaseHTTPRequestHandler):
             body = (
                 "<!doctype html><meta name=viewport content='width=device-width'>"
                 "<body style='font-family:sans-serif;padding:24px'>"
-                "<h2>DSH Android</h2>"
-                f"<p><a style='font-size:20px' href='/dsh-android.apk'>下载 {html.escape(self.apk.name)}"
+                "<h2>DHA</h2>"
+                f"<p><a style='font-size:20px' href='/DHA.apk'>下载 {html.escape(self.apk.name)}"
                 f"（{self.apk.stat().st_size // 1048576} MB）</a></p>"
                 "<p style='color:#666'>安装时如提示「未知来源」，请在系统设置里允许本次安装。</p>"
                 "</body>"
@@ -65,7 +65,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if self.path.split("?")[0] in ("/dsh-android.apk", "/" + self.apk.name):
+        if self.path.split("?")[0] in ("/DHA.apk", "/" + self.apk.name):
             size = self.apk.stat().st_size
             self.send_response(200)
             self.send_header("Content-Type", "application/vnd.android.package-archive")
@@ -79,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_HEAD(self) -> None:  # noqa: N802
-        if self.path.split("?")[0] in ("/dsh-android.apk", "/" + self.apk.name):
+        if self.path.split("?")[0] in ("/DHA.apk", "/" + self.apk.name):
             self.send_response(200)
             self.send_header("Content-Type", "application/vnd.android.package-archive")
             self.send_header("Content-Length", str(self.apk.stat().st_size))

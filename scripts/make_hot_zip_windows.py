@@ -8,22 +8,11 @@ Two deltas from upstream's make_hot_zip.py, both deliberate and documented:
    have -- and the shim is already a committed artefact under
    payload/opt/dsh/android/liblinkfix.so, so nothing has to be rebuilt here.
 
-2. **The baked package gets a content-derived `sp`, not a hardcoded 0.**
-   Upstream's `next_sp()` returns 0 for every `--base` build, so re-releasing the same
-   app version with *different* hot content produces an identical version string
-   (`<app>-t<terminal>-sp0`). The app decides whether to re-apply by version equality
-   (see HotVersion.shouldReplay), so it concludes "the APK already carries this" and
-   skips the new content -- the fix silently ships nothing. That is exactly what
-   happened to the xdg-user-dir shim.
-
-   Deriving `sp` from the package's own content hash makes the version string change
-   whenever the content does, while staying identical for identical content (a rebuild
-   must not look like a new update). It also makes an APK's baked package rank ahead of
-   any previously stored external one, which is the correct direction: HotVersion drops
-   a stored package whose `sp` is not greater than the baked one.
-
-   The change is self-consistent because only this packer writes baked packages for
-   this fork, and it writes the same scheme every time.
+2. **The baked package uses the same monotonic `sp` scheme as Linux.**
+   Identical content keeps the recorded number; changed content increments it. This
+   prevents a newly built APK from baking an older package that `HotVersion` would
+   discard. Text files are normalized to LF before packing so Windows and Linux
+   checkouts produce the same content hash.
 
 Usage: make_hot_zip_windows.py <repo-root> <out.zip> [--check]
 """
@@ -38,18 +27,6 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import make_hot_zip as upstream  # noqa: E402  (path set up above)
-
-# The sp value is written into the version string as plain digits, so it must stay a
-# non-negative integer. Reserving the top of the range keeps this scheme's numbers well
-# clear of the small 0,1,2,... sequence upstream's tracker hands out for hot releases.
-SP_MODULUS = 9000
-SP_OFFSET = 1000
-
-
-def content_sp(content_hex: str) -> int:
-    """A stable, content-derived sequence number."""
-    return SP_OFFSET + (int(content_hex[:8], 16) % SP_MODULUS)
-
 
 def main() -> None:
     if len(sys.argv) < 3:
@@ -110,7 +87,7 @@ def main() -> None:
             digest.update(name.encode("utf-8"))
             digest.update(archive.read(name))
     content = digest.hexdigest()[:16]
-    sp = content_sp(content)
+    sp = upstream.next_sp(root, app, terminal, content, base=True)
     hot = version.hot_version(app, terminal, sp)
 
     with zipfile.ZipFile(out, "a", zipfile.ZIP_DEFLATED) as archive:
@@ -120,9 +97,8 @@ def main() -> None:
                         "hash": content, "files": written,
                         "built": time.strftime("%Y-%m-%dT%H:%M:%S")}, indent=2),
         )
-
     print(f"wrote {out} ({out.stat().st_size} bytes, {written} files)")
-    print(f"  version {hot}  (content-derived sp, upstream base would be sp0)")
+    print(f"  version {hot}  (monotonic sp, tracked in HOT)")
     print(f"  content {content}")
 
     with zipfile.ZipFile(out) as archive:
@@ -142,6 +118,7 @@ def main() -> None:
     if check_only and not re.fullmatch(rf"{re.escape(app)}-t{re.escape(terminal)}-sp\d+",
                                        stamped["version"]):
         sys.exit(f"unexpected version stamp: {stamped['version']}")
+    upstream.write_tracker(root, app, terminal, sp, content)
 
 
 if __name__ == "__main__":

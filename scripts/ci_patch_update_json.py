@@ -74,7 +74,9 @@ def main() -> None:
         document, changed = patch(document, args.version, args.code)
         print(f"{'需要改' if changed else '无需改动'}：app.version={document['app']['version']} "
               f"app.versionCode={document['app']['versionCode']}")
-        if changed and not args.check:
+        if changed and args.check:
+            raise SystemExit(1)
+        if changed:
             open(args.document, "w", encoding="utf-8").write(
                 json.dumps(document, indent=2, ensure_ascii=False) + "\n")
             print(f"已写回 {args.document}")

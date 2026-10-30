@@ -50,6 +50,11 @@ ALLOWED_PREFIXES = (
 # Committed, because the sequence number has to survive across machines and
 # sessions — recomputing it from the network would double-bump on a retry.
 TRACKER = "HOT"
+TEXT_SUFFIXES = {
+    ".css", ".html", ".js", ".json", ".md", ".mjs", ".patch", ".py",
+    ".sh", ".svg", ".toml", ".txt", ".xml", ".yaml", ".yml",
+}
+TEXT_NAMES = {"ball", "shiz", "ui", "xdg-user-dir"}
 
 
 def add_file(archive: zipfile.ZipFile, source: Path, arcname: str) -> int:
@@ -58,7 +63,10 @@ def add_file(archive: zipfile.ZipFile, source: Path, arcname: str) -> int:
     info = zipfile.ZipInfo(arcname, date_time=(2026, 1, 1, 0, 0, 0))
     info.external_attr = (0o755 if name_is_executable(source) else 0o644) << 16
     info.compress_type = zipfile.ZIP_DEFLATED
-    archive.writestr(info, source.read_bytes())
+    data = source.read_bytes()
+    if source.suffix.lower() in TEXT_SUFFIXES or source.name in TEXT_NAMES:
+        data = data.replace(b"\r\n", b"\n")
+    archive.writestr(info, data)
     return 1
 
 
@@ -125,11 +133,10 @@ def next_sp(root: Path, app: str, terminal: str, digest: str, base: bool) -> int
     like a downgrade and the app's "already applied" check would skip the
     update).
 
-      base build               -> always 0. The package an APK bakes in *is* the
-                                  base of its line — that is what sp0 means, and
-                                  it stays true even when a re-release of the same
-                                  app version carries newer content than the last
-                                  published hot package.
+      base build, same content -> keep the recorded sp
+      base build, new content  -> recorded sp + 1, so the package baked into a
+                                  newly installed APK outranks an older external
+                                  hot package instead of being discarded as older
       same line, same payload  -> keep the number it already has (a rebuild must
                                   not bump it and re-prompt every device)
       same line, new payload   -> the next number (it has to rise: the app's
@@ -138,12 +145,14 @@ def next_sp(root: Path, app: str, terminal: str, digest: str, base: bool) -> int
                                   terminal version, and a hot package only ever
                                   applies on top of the runtime it was built for.
     """
-    if base:
-        return 0
     tracker = read_tracker(root)
     same_line = tracker.get("app") == app and str(tracker.get("terminal", "")) == terminal
     if same_line and tracker.get("hash") == digest:
         return int(tracker.get("sp", 0))
+    if base:
+        if same_line and tracker:
+            return int(tracker.get("sp", 0)) + 1
+        return 1
     if not same_line:
         return 1
     return int(tracker.get("sp", 0)) + 1

@@ -1,6 +1,6 @@
 # meow-memory 🐱📝
 
-| [中文](README.md) | [English](README.en.md) | [Português (BR)](README.pt-br.md) | [MIT License](LICENSE) |
+| [中文](README.md) | [English](https://github.com/Phant0Meow/dsh-meow-memory/blob/main/README.en.md) | [Português (BR)](https://github.com/Phant0Meow/dsh-meow-memory/blob/main/README.pt-br.md) | [MIT License](LICENSE) |
 | :---: | :---: | :---: | :---: |
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）打造的跨会话记忆插件。
@@ -195,7 +195,7 @@ prompt 仍按 `promptLang` 走（`promptLang` 只选 `src/prompts/` 里的模型
 ——中文用户浏览器也是中文时界面不变，浏览器要英文的用户则拿到英文（这正是本次改动的目的）。
 
 自定义 / 社区界面语言：加一个字典文件 + 在 `SUPPORTED_UI_LOCALES` 加一行（不改 UI 代码），
-详见 [`src/i18n/README.md`](src/i18n/README.md)。
+详见上游 [`src/i18n/README.md`](https://github.com/Phant0Meow/dsh-meow-memory/blob/main/src/i18n/README.md)。
 
 ### promptLang：prompt 与检索语言（重要）
 
@@ -205,7 +205,7 @@ prompt 仍按 `promptLang` 走（`promptLang` 只选 `src/prompts/` 里的模型
 
 检索侧说明：BM25 分词自 v0.20.0 起语言无关（类别路由），条目与查询语言不一致不再"杀检索"；`en` 模式额外启用英语归一化（停用词过滤 + Porter 词干还原），屈折变化不影响命中（`tokenizers` 能命中存为 `tokenizer` 的条目）。
 
-自定义 / 社区语言包：prompt 文案是数据文件（`src/prompts/`），一门语言一个子目录，改文件即生效、无需改代码——详见 [`src/prompts/README.md`](src/prompts/README.md)（含贡献指南与 `npm run check-lang` 自查）。实例级自定义：`<home>/.dsh-meow/prompts/<lang>/` 下放同名槽位文件即可覆盖（可只覆盖部分）。
+自定义 / 社区语言包：prompt 文案是数据文件（`src/prompts/`），一门语言一个子目录，改文件即生效、无需改代码——详见上游 [`src/prompts/README.md`](https://github.com/Phant0Meow/dsh-meow-memory/blob/main/src/prompts/README.md)（含贡献指南与 `npm run check-lang` 自查）。实例级自定义：`<home>/.dsh-meow/prompts/<lang>/` 下放同名槽位文件即可覆盖（可只覆盖部分）。
 
 ## 🧠 工作原理
 

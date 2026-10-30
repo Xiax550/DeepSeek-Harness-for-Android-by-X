@@ -5,6 +5,7 @@
 .github/dependabot.yml
 .github/pull_request_template.md
 .github/workflows/release-full.yml
+.github/workflows/validate.yml
 .gitignore
 AUTHORS.md
 CHANGELOG.md
@@ -120,8 +121,10 @@ docs/images/icon-night.png
 docs/images/main.jpg
 docs/images/settings.jpg
 docs/images/terminal.jpg
+docs/link-test.mjs
 docs/page-tools-media-test.mjs
 docs/preinstalled-plugins.md
+docs/release-config-test.py
 docs/release-notes-test.py
 docs/repair-profile-test.mjs
 docs/run-unit-tests.sh

@@ -5,9 +5,9 @@
 # repository is enough. Set it in the app under Settings → Environments; this
 # script never prints it and never writes it anywhere.
 #
-# The asset names matter: update.json points at
-#   releases/latest/download/DHA.apk
-#   releases/latest/download/dsh-hot.zip
+# The asset names matter: update.json points at versioned files such as
+#   releases/latest/download/DHA-1.2.50-arm64.apk
+#   releases/latest/download/DHA-1.2.50-hot.zip
 # so renaming them would break in-app updates.
 #
 # Reentrant on purpose: a run that dies between creating the release and
@@ -49,8 +49,12 @@ TAG_VERSION="${TAG#v}"
 APK="$ROOT/out/DHA.apk"
 SLIM_APK="$ROOT/out/DHA-slim.apk"
 HOT="$ROOT/out/dsh-hot.zip"
-SOURCE="$ROOT/out/DHA-source-${VERSION}.tar.gz"
-SUMS="$ROOT/out/SHA256SUMS"
+SOURCE="$ROOT/out/DHA-${VERSION}-source.tar.gz"
+SUMS="$ROOT/out/SHA256SUMS.txt"
+APK_NAME="DHA-${VERSION}-arm64.apk"
+SLIM_NAME="DHA-${VERSION}-slim.apk"
+HOT_NAME="DHA-${VERSION}-hot.zip"
+SOURCE_NAME="$(basename "$SOURCE")"
 
 echo "== 发布 $TAG =="
 if [ ! -f "$APK" ]; then
@@ -73,7 +77,7 @@ if [ -z "${GITHUB_TOKEN:-}" ]; then
   2. 标题填 DHA $VERSION，正文用
      python3 scripts/release_notes.py $VERSION 生成（内容取自 CHANGELOG.md）
   3. 把这三个文件拖进去，然后 Publish：
-       $APK   (137 MB)
+       $APK   (完整 APK，上传名 $APK_NAME)
        $HOT   (几十 KB)
        $SOURCE (对应源码)
 EOF
@@ -87,7 +91,7 @@ ACCEPT="Accept: application/vnd.github+json"
 API="https://api.github.com/repos/$REPO"
 
 asset_id() {
-  curl -sS -H "$AUTH" "$API/releases/$RELEASE_ID/assets" | python3 -c '
+  curl -fS -H "$AUTH" "$API/releases/$RELEASE_ID/assets" | python3 -c '
 import json, sys
 target = sys.argv[1]
 for asset in json.load(sys.stdin):
@@ -112,20 +116,28 @@ print(json.dumps({"tag_name": tag, "name": tag, "body": sys.stdin.read(),
 
 BODY=$(body_json)
 
-RELEASE_ID=$(curl -sS -H "$AUTH" -H "$ACCEPT" "$API/releases/tags/$TAG" | python3 -c '
+RELEASE_FILE="$ROOT/build/release.json"
+STATUS=$(curl -sS -o "$RELEASE_FILE" -w '%{http_code}' \
+  -H "$AUTH" -H "$ACCEPT" "$API/releases/tags/$TAG")
+case "$STATUS" in
+  200) ;;
+  404) : > "$RELEASE_FILE" ;;
+  *) echo "读取 release 失败：HTTP $STATUS" >&2; exit 1 ;;
+esac
+RELEASE_ID=$(python3 -c '
 import json, sys
 try:
-    print(json.load(sys.stdin).get("id", ""))
+    print(json.load(open(sys.argv[1], encoding="utf-8")).get("id", ""))
 except Exception:
     print("")
-')
+' "$RELEASE_FILE")
 
 if [ -n "$RELEASE_ID" ]; then
   echo "   已存在（id $RELEASE_ID）：更新说明并补齐资产"
-  printf '%s' "$BODY" | curl -sS -X PATCH -H "$AUTH" -H "$ACCEPT" \
+  printf '%s' "$BODY" | curl -fS -X PATCH -H "$AUTH" -H "$ACCEPT" \
     --data-binary @- "$API/releases/$RELEASE_ID" > /dev/null
 else
-  RELEASE_ID=$(printf '%s' "$BODY" | curl -sS -X POST -H "$AUTH" -H "$ACCEPT" \
+  RELEASE_ID=$(printf '%s' "$BODY" | curl -fS -X POST -H "$AUTH" -H "$ACCEPT" \
     --data-binary @- "$API/releases" | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
@@ -137,49 +149,59 @@ if not data.get("id"):
   echo "   新建 release id $RELEASE_ID"
 fi
 
-echo "== 上传资产 =="
-(
-  cd "$(dirname "$APK")"
-  # Only what is actually being uploaded: sha256sum on a missing file would abort
-  # the publish after the assets were already replaced.
-  { [ -f DHA.apk ] && echo DHA.apk
-    [ -f DHA-slim.apk ] && echo DHA-slim.apk
-    echo dsh-hot.zip
-    echo "$(basename "$SOURCE")"
-  } | xargs sha256sum > "$SUMS"
-)
+sum_line() {
+  file=$1
+  name=$2
+  [ -f "$file" ] || return 0
+  printf '%s  %s\n' "$(sha256sum "$file" | cut -d' ' -f1)" "$name"
+}
+{
+  sum_line "$APK" "$APK_NAME"
+  sum_line "$SLIM_APK" "$SLIM_NAME"
+  sum_line "$HOT" "$HOT_NAME"
+  sum_line "$SOURCE" "$SOURCE_NAME"
+} > "$SUMS"
 
-UPLOADS=""
-[ -f "$APK" ] && UPLOADS="$APK:application/vnd.android.package-archive
-"
-UPLOADS="$UPLOADS$HOT:application/zip
-$SOURCE:application/gzip
-$SUMS:text/plain"
-# Optional: the shell without the runtime. Same APK minus the 190 MB payload, for
-# phones that already have the terminal — which is every phone after the first
-# install. Absent means this release ships only the full one.
-[ -f "$SLIM_APK" ] && UPLOADS="$UPLOADS
-$SLIM_APK:application/vnd.android.package-archive"
-
-printf '%s\n' "$UPLOADS" | while IFS= read -r spec; do
-  [ -n "$spec" ] || continue
-  file=${spec%%:*}
-  type=${spec#*:}
-  name=$(basename "$file")
+upload_asset() {
+  file=$1
+  name=$2
+  type=$3
   old=$(asset_id "$name")
   if [ -n "$old" ]; then
-    curl -sS -X DELETE -H "$AUTH" "$API/releases/assets/$old" > /dev/null
+    curl -fS -X DELETE -H "$AUTH" "$API/releases/assets/$old" > /dev/null
   fi
-  printf '   %-18s %6s  ' "$name" "$(du -h "$file" | cut -f1)"
-  curl -sS -X POST -H "$AUTH" -H "Content-Type: $type" \
+  printf '   %-32s %6s  ' "$name" "$(du -h "$file" | cut -f1)"
+  response=$(curl -fS -X POST -H "$AUTH" -H "Content-Type: $type" \
     --data-binary "@$file" \
-    "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=$name" \
-    | python3 -c '
+    "https://uploads.github.com/repos/$REPO/releases/$RELEASE_ID/assets?name=$name")
+  printf '%s' "$response" | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
+if data.get("state") != "uploaded":
+    raise SystemExit("upload did not complete: " + json.dumps(data, ensure_ascii=False))
 print(data.get("browser_download_url") or data.get("message"))
 '
-done
+}
+
+echo "== 上传资产 =="
+[ -f "$APK" ] && upload_asset "$APK" "$APK_NAME" application/vnd.android.package-archive
+[ -f "$SLIM_APK" ] && upload_asset "$SLIM_APK" "$SLIM_NAME" application/vnd.android.package-archive
+upload_asset "$HOT" "$HOT_NAME" application/zip
+upload_asset "$SOURCE" "$SOURCE_NAME" application/gzip
+upload_asset "$SUMS" SHA256SUMS.txt text/plain
+
+set -- "$APK_NAME" "$HOT_NAME" "$SOURCE_NAME" SHA256SUMS.txt
+[ -f "$SLIM_APK" ] && set -- "$@" "$SLIM_NAME"
+curl -fS -H "$AUTH" "$API/releases/$RELEASE_ID/assets" | python3 -c '
+import json, sys
+required = set(sys.argv[1:])
+assets = json.load(sys.stdin)
+names = {asset.get("name") for asset in assets if asset.get("state") == "uploaded"}
+missing = required - names
+if missing:
+    raise SystemExit("missing uploaded assets: " + ", ".join(sorted(missing)))
+print("verified remote assets:", len(required))
+' "$@"
 
 echo "== 完成 =="
 echo "https://github.com/$REPO/releases/tag/$TAG"

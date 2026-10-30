@@ -216,13 +216,16 @@ Assert-File (Join-Path $VoiceNative 'libjnidispatch.so') 'libjnidispatch.so'
 # changed hot payload produced an identical version string, and the app's "already
 # applied" check (version equality, see HotVersion.shouldReplay) then skipped it -- the
 # change shipped nothing, which is exactly what happened to the xdg-user-dir shim.
-# scripts/make_hot_zip_windows.py derives `sp` from the package content instead, so a
-# content change always produces a new version string.
+# scripts/make_hot_zip_windows.py uses the same monotonic tracker as the Linux packer;
+# it also normalizes text line endings so both platforms derive the same content hash.
 $hotGenerated = Join-Path $Build 'hot-generated.zip'
 Invoke-Native -Exe $Python -NativeArgs @(
     (Join-Path $Root 'scripts\make_hot_zip_windows.py'), $Root, $hotGenerated, '--check'
 ) -What 'make_hot_zip_windows.py'
 Copy-Item $hotGenerated (Join-Path $Build 'hot-assets\hot.zip') -Force
+Invoke-Native -Exe $Python -NativeArgs @(
+    (Join-Path $Root 'scripts\make_update_manifest.py'), $Root
+) -What 'make_update_manifest.py'
 $assets += "assets/hot.zip:$(Join-Path $Build 'hot-assets\hot.zip')"
 $assets += "assets/vosk-model-small-cn.zip:$VoiceModel"
 foreach ($legalName in @('LICENSE', 'AUTHORS.md', 'NOTICE.md', 'THIRD_PARTY.md', 'OPEN_SOURCE_COMPLIANCE.md')) {

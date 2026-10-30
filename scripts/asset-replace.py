@@ -7,8 +7,8 @@ response was lost after the server had stored the file — so each attempt delet
 name first.
 
 Usage: asset-replace.py <tag> <file> <asset-name> <content-type> [<file> <name> <type> ...]
-       asset-replace.py v1.2.0 build/hot-assets/hot.zip dsh-hot.zip application/zip \\
-                        out/SHA256SUMS SHA256SUMS text/plain
+       asset-replace.py v1.2.50 build/hot-assets/hot.zip DHA-1.2.50-hot.zip application/zip \\
+                        out/SHA256SUMS.txt SHA256SUMS.txt text/plain
 Token: /root/.dsh/gh-token (never printed, never put on a command line).
 """
 import json

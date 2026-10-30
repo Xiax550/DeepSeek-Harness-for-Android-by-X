@@ -7,7 +7,7 @@
 # separately too:
 #
 #   t<N>        payload.zip + payload.manifest   — the runtime, tagged by terminal
-#   v<app>      DHA.apk + slim + hot              — the shell
+#   v<app>      DHA-<app>-arm64.apk + slim + hot  — the shell
 #
 # update.json points terminal.url at `releases/download/t<N>/payload.zip`, a URL
 # that stays valid as long as the terminal version does. The slim shell downloads
@@ -54,7 +54,7 @@ import json, pathlib, sys
 tag, version, notes = sys.argv[1], sys.argv[2], pathlib.Path(sys.argv[3])
 text = notes.read_text(encoding="utf-8") if notes.is_file() else (
     f"沙箱运行时 t{version}。\n\n"
-    "这是 `DHA-slim.apk` 首次启动时会下载的那份 rootfs（Ubuntu + Node + dsh + 常用工具），"
+    "这是版本化 `DHA-<版本>-slim.apk` 首次启动时会下载的那份 rootfs（Ubuntu + Node + dsh + 常用工具），"
     "已经装过完整 APK 的设备不需要它。\n")
 print(json.dumps({"tag_name": tag, "name": tag, "body": text,
                   "draft": False, "prerelease": False}, ensure_ascii=False))

@@ -140,7 +140,7 @@ elif [ -z "$PNPM_LINK" ]; then
   if [ "$PAYLOAD_BUNDLED" = "True" ] || [ "$PAYLOAD_BUNDLED" = "true" ]; then
     fail "全量包已装但 pnpm 不在" "/usr/local/bin/pnpm 存在" "找不到（看 /.payload-* 标记与解包日志）"
   else
-    skip "pnpm 不在（本机是瘦包安装）" "已知限制：pnpm 随运行时包发；瘦包升级不会重下 payload。要 pnpm 请装 dsh-android.apk（全量包，~197 MB）"
+    skip "pnpm 不在（本机是瘦包安装）" "已知限制：pnpm 随运行时包发；瘦包升级不会重下 payload。要 pnpm 请装版本化 arm64 全量 APK"
   fi
 elif [ "$PNPM_VER" != "$EXPECT_PNPM" ]; then
   fail "pnpm 版本不对" "$EXPECT_PNPM" "$PNPM_VER"
@@ -227,7 +227,7 @@ manual "失败路径" "断网后点 Install" "面板里出现 Failed: … 之类
 head1 "9. 已知缺口：全量包的运行时种子里是上一版市场"
 printf '  判据（两条都满足即"设备最终是新版"）：\n'
 printf '    a) /snapshot hotVersion = %s（热包生效）\n    b) %s 的 md5 = %s\n' "$EXPECT_HOT" "$MARKET_GUEST" "$EXPECT_MARKET_MD5"
-printf '  说明：装 dsh-android.apk（全量，种子里的市场是上一版）或旧 runtime 的设备，\n'
+printf '  说明：装版本化 arm64 全量 APK（种子里的市场是上一版）或旧 runtime 的设备，\n'
 printf '        第一次启动会应用 %s 热包，把市场覆盖成新版；a+b 即证明已完成。\n' "$EXPECT_HOT"
 if [ "$HOT_VER" = "$EXPECT_HOT" ] && [ "$MARKET_MD5" = "$EXPECT_MARKET_MD5" ]; then
   pass "设备最终是新版（a+b 都满足）"

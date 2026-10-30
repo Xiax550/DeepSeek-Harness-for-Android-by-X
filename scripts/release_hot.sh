@@ -33,7 +33,9 @@ echo "== 1/5 打包 =="
 HOT="$BUILD/hot-assets/hot.zip"
 python3 "$ROOT/scripts/make_hot_zip.py" "$ROOT" "$HOT"
 APP_VERSION=$(cat "$ROOT/VERSION")
-SOURCE="$ROOT/out/DHA-source-${APP_VERSION}.tar.gz"
+HOT_NAME="DHA-${APP_VERSION}-hot.zip"
+SOURCE="$ROOT/out/DHA-${APP_VERSION}-source.tar.gz"
+SOURCE_NAME="$(basename "$SOURCE")"
 python3 "$ROOT/scripts/make_source_tar.py" --root "$ROOT" --out "$SOURCE"
 
 echo "== 2/5 更新清单 =="
@@ -64,9 +66,9 @@ echo "   正文段落 $(wc -c < "$NOTES") 字节"
 echo "== 3/5 定位 release =="
 RELEASE_JSON="$BUILD/release.json"
 if [ -n "${DSH_RELEASE_TAG:-}" ]; then
-  curl -sS -H "$AUTH" -H "$ACCEPT" "$API/releases/tags/$DSH_RELEASE_TAG" -o "$RELEASE_JSON"
+  curl -fsS -H "$AUTH" -H "$ACCEPT" "$API/releases/tags/$DSH_RELEASE_TAG" -o "$RELEASE_JSON"
 else
-  curl -sS -H "$AUTH" -H "$ACCEPT" "$API/releases/latest" -o "$RELEASE_JSON"
+  curl -fsS -H "$AUTH" -H "$ACCEPT" "$API/releases/latest" -o "$RELEASE_JSON"
 fi
 python3 -c '
 import json, sys
@@ -80,50 +82,58 @@ UPLOAD=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["upload
 
 # Replace the mutable assets. The APK is deliberately left alone: an app build
 # takes ten minutes and a 143 MB upload, and nothing about a hot change needs it.
-for name in dsh-hot.zip SHA256SUMS "$(basename "$SOURCE")"; do
+for name in "$HOT_NAME" SHA256SUMS.txt "$SOURCE_NAME"; do
   id=$(python3 -c '
 import json, sys
 for asset in json.load(open(sys.argv[1])).get("assets", []):
     if asset["name"] == sys.argv[2]:
         print(asset["id"]); break
 ' "$RELEASE_JSON" "$name")
-  [ -z "$id" ] || curl -sS -X DELETE -H "$AUTH" "$API/releases/assets/$id" > /dev/null
+  [ -z "$id" ] || curl -fS -X DELETE -H "$AUTH" "$API/releases/assets/$id" > /dev/null
 done
 
 echo "== 4/5 上传热包 =="
-printf '   %-14s %6s  ' dsh-hot.zip "$(du -h "$HOT" | cut -f1)"
-curl -sS -X POST -H "$AUTH" -H "Content-Type: application/zip" \
-  --data-binary "@$HOT" "$UPLOAD?name=dsh-hot.zip" \
+printf '   %-32s %6s  ' "$HOT_NAME" "$(du -h "$HOT" | cut -f1)"
+curl -fS -X POST -H "$AUTH" -H "Content-Type: application/zip" \
+  --data-binary "@$HOT" "$UPLOAD?name=$HOT_NAME" \
   | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
 print(data.get("browser_download_url") or data.get("message"))
 '
 
-curl -sS -X POST -H "$AUTH" -H "Content-Type: application/gzip" \
-  --data-binary "@$SOURCE" "$UPLOAD?name=$(basename "$SOURCE")" > /dev/null
+curl -fS -X POST -H "$AUTH" -H "Content-Type: application/gzip" \
+  --data-binary "@$SOURCE" "$UPLOAD?name=$SOURCE_NAME" > /dev/null
 
 # Checksums cover the APK too, and that asset is not re-uploaded here — its
 # digest comes from the asset API instead of a 143 MB download.
 mkdir -p "$ROOT/out"
-SUMS="$ROOT/out/SHA256SUMS"
+SUMS="$ROOT/out/SHA256SUMS.txt"
 {
-  python3 -c '
+  python3 - "$RELEASE_JSON" "$APP_VERSION" <<'PY'
 import json, sys
-for asset in json.load(open(sys.argv[1])).get("assets", []):
-    if asset["name"] == "dsh-android.apk" and asset.get("digest"):
-        print("%s  dsh-android.apk" % asset["digest"].removeprefix("sha256:"))
-' "$RELEASE_JSON"
-  printf '%s  dsh-hot.zip\n' "$(sha256sum "$HOT" | cut -d' ' -f1)"
-  printf '%s  %s\n' "$(sha256sum "$SOURCE" | cut -d' ' -f1)" "$(basename "$SOURCE")"
+release = json.load(open(sys.argv[1]))
+version = sys.argv[2]
+names = {f"DHA-{version}-arm64.apk", "DHA.apk", "dsh-android.apk"}
+found = False
+for asset in release.get("assets", []):
+    if asset.get("name") in names and asset.get("digest"):
+        print("%s  %s" % (asset["digest"].removeprefix("sha256:"), asset["name"]))
+        found = True
+        break
+if not found:
+    raise SystemExit("release 中没有带 digest 的完整 APK")
+PY
+  printf '%s  %s\n' "$(sha256sum "$HOT" | cut -d' ' -f1)" "$HOT_NAME"
+  printf '%s  %s\n' "$(sha256sum "$SOURCE" | cut -d' ' -f1)" "$SOURCE_NAME"
 } > "$SUMS"
 
 echo "== 5/5 更新正文与校验和 =="
 BODY=$(python3 "$ROOT/scripts/hot_release_body.py" "$RELEASE_JSON" "$NOTES")
-printf '%s' "$BODY" | curl -sS -X PATCH -H "$AUTH" -H "$ACCEPT" --data-binary @- \
+printf '%s' "$BODY" | curl -fS -X PATCH -H "$AUTH" -H "$ACCEPT" --data-binary @- \
   "$API/releases/$RELEASE_ID" > /dev/null
-curl -sS -X POST -H "$AUTH" -H "Content-Type: text/plain" \
-  --data-binary "@$SUMS" "$UPLOAD?name=SHA256SUMS" > /dev/null
+curl -fS -X POST -H "$AUTH" -H "Content-Type: text/plain" \
+  --data-binary "@$SUMS" "$UPLOAD?name=SHA256SUMS.txt" > /dev/null
 echo "   $(basename "$SUMS")"
 
 if [ "${DSH_SKIP_PUSH:-}" = "1" ]; then

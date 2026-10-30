@@ -94,7 +94,7 @@ def main():
               "hot-history contains both packages, newest section first is not required")
         # and the app channel must be untouched by the change
         app = notes.render(changelog, "1.2.0", "app")
-        check(app.startswith("# dsh-android 1.2.0"), True, "app channel unchanged")
+        check(app.startswith("# DHA 1.2.0"), True, "app channel uses the DHA name")
 
     # the real changelog must carry a section for every published hot package —
     # otherwise release_hot.sh would PATCH the release body with the placeholder

@@ -8,7 +8,7 @@
 |---|---|
 | `aapt2` | 资源编译与链接。x86_64 glibc 二进制，在 arm64 上经 `qemu-x86_64` 跑 |
 | `d8` | 来自 `r8.jar`，把 class 文件变成 dex |
-| JDK 11 | `javac` / `keytool` |
+| JDK 17 | `javac` / `keytool`（JDK 11 构建的旧说明已过时） |
 | `python3` + Pillow | 打包、从 `assets/dha-icon-source.png` 生成图标、载荷校验 |
 | `qemu-x86_64` + 一份 glibc 环境 | 只为跑 aapt2；`QEMU_LD_PREFIX` 指向解出来的 Debian 库目录 |
 
@@ -25,7 +25,7 @@ sh scripts/assemble_payload.sh
 python3 scripts/make_payload_zip.py build/rootfs-ubuntu build/payload-assets/payload.zip
 
 # 3) 出包（自动生成 BuildInfo + hot.zip + 图标，然后签名）
-sh scripts/build_apk.sh            # → out/dsh-android.apk
+sh scripts/build_apk.sh            # → out/DHA.apk
 ```
 
 ## 各步骤在做什么
@@ -167,7 +167,8 @@ release 正文由根目录 [CHANGELOG.md](../CHANGELOG.md) 渲染而来（`scrip
 
 ## 签名
 
-`keystore/dsh.p12` 由 `build_apk.sh` 首次运行时生成（口令写在脚本里的 `KS_PASS`）。
+`keystore/dha.p12` 由 `build_apk.sh` 首次在本地运行时可生成（口令由 `KS_PASS` 提供）。
+CI 必须设置 `REQUIRE_KEYSTORE=1`，缺失密钥时构建会直接失败，避免误生成新的应用身份。
 **这个文件是应用身份，绝对不要提交或分享**：泄露之后任何人都能签出系统认可的"升级包"。
 `.gitignore` 已经排除 `keystore/`。
 
@@ -177,7 +178,7 @@ release 正文由根目录 [CHANGELOG.md](../CHANGELOG.md) 渲染而来（`scrip
 
 ```sh
 # 有 Shizuku 时最省事
-android-shizuku-cli exec 'cp /sdcard/Download/dsh-android.apk /data/local/tmp/ && pm install -r /data/local/tmp/dsh-android.apk'
+android-shizuku-cli exec 'cp /sdcard/Download/DHA.apk /data/local/tmp/ && pm install -r /data/local/tmp/DHA.apk'
 ```
 
 没有 Shizuku 就把 APK 拷到手机，用文件管理器点安装（记得允许"未知来源"）。

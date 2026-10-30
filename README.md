@@ -82,6 +82,8 @@ from the exact payload.
 4. Keep `LICENSE`, `NOTICE.md`, `THIRD_PARTY.md`, `OPEN_SOURCE_COMPLIANCE.md` and `LICENSES/`.
 5. Never commit API keys, credentials, signing keys, APKs, build output or device logs.
 6. Set `DSH_REPO=owner/repository` and `DSH_GIT_REMOTE` before using release scripts.
+7. Publish app assets as `DHA-<version>-arm64.apk`, `-slim.apk` and `-hot.zip`,
+   with matching URLs in `update.json`, and pass the `validate` GitHub Actions job.
 
 See [`GITHUB_PUBLISHING.md`](GITHUB_PUBLISHING.md) and [`DEPENDENCIES.md`](DEPENDENCIES.md)
 for the publication-specific checklist.

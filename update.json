@@ -3,8 +3,8 @@
   "app": {
     "version": "1.2.50",
     "versionCode": 10263,
-    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA.apk",
-    "slim": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA-slim.apk",
+    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA-1.2.50-arm64.apk",
+    "slim": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA-1.2.50-slim.apk",
     "page": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest"
   },
   "terminal": {
@@ -15,8 +15,8 @@
     "manifest": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/download/t3/payload.manifest"
   },
   "hot": {
-    "version": "1.2.50-t3-sp8125",
-    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/dsh-hot.zip",
+    "version": "1.2.50-t3-sp8126",
+    "url": "https://github.com/Xiax550/DeepSeek-Harness-for-Android-by-X/releases/latest/download/DHA-1.2.50-hot.zip",
     "manifest": "https://cdn.jsdelivr.net/gh/Xiax550/DeepSeek-Harness-for-Android-by-X@main/update.json"
   }
 }

@@ -34,12 +34,12 @@ import re
 import sys
 from pathlib import Path
 
-APP_FOOTER = """**安装**：下载本页的 `dsh-android.apk`，覆盖安装即可；会话、API Key、挂载与设置都会保留。
+APP_FOOTER = """**安装**：下载本页的 `DHA-<版本>-arm64.apk`，覆盖安装即可；会话、API Key、挂载与设置都会保留。
 首次启动需要解包内置运行时（约 2 分钟），之后冷启动约 5 秒。完整说明见 [README](README.md)。
 """
 
 HOT_FOOTER = """**应用**：设置 → 安卓沙箱 → 检查更新 → 应用热更新。
-也可以把 `dsh-hot.zip` 放进手机的 `Download` 目录，重开应用即可。
+也可以把 `DHA-<版本>-hot.zip` 放进手机的 `Download` 目录，重开应用即可。
 """
 
 HEADING = re.compile(r"^##\s+\[?([^\]]+?)\]?(?:\s+-\s+(.*))?$")
@@ -139,7 +139,7 @@ def heading(version: str, date: str) -> str:
 def render(changelog: Changelog, version: str, channel: str) -> str:
     if channel == "app":
         body, _date = changelog.entry(version)
-        return f"# dsh-android {version}\n\n{body}\n\n---\n\n{APP_FOOTER}".rstrip()
+        return f"# DHA {version}\n\n{body}\n\n---\n\n{APP_FOOTER}".rstrip()
 
     if channel == "hot":
         body, date = changelog.entry(version)

@@ -29,17 +29,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 
 FULL = "dsh-android.apk"
 SLIM = "dsh-android-slim.apk"
 HOT = "dsh-hot.zip"
-# Anything the app channel publishes. A release without at least one of these is
-# some other channel's release — a `t<N>` terminal release carries payload.zip and
-# nothing else, and it must not start a 15-minute APK build.
-APP_MARKERS = (SLIM, HOT)
-
-
+FULL_VERSIONED = re.compile(r"^DHA-[0-9]+\.[0-9]+\.[0-9]+-arm64\.apk$")
+SLIM_VERSIONED = re.compile(r"^DHA-[0-9]+\.[0-9]+\.[0-9]+-slim\.apk$")
+HOT_VERSIONED = re.compile(r"^DHA-[0-9]+\.[0-9]+\.[0-9]+-hot\.zip$")
 def asset_names(document: object) -> list[str]:
     if document is None:
         return []
@@ -57,8 +55,9 @@ def asset_names(document: object) -> list[str]:
 
 
 def plan(event: str, tag: str, assets: list[str]) -> dict[str, str]:
-    have_slim = SLIM in assets
-    have_full = FULL in assets
+    have_slim = SLIM in assets or any(SLIM_VERSIONED.match(name) for name in assets)
+    have_full = FULL in assets or any(FULL_VERSIONED.match(name) for name in assets)
+    have_hot = HOT in assets or any(HOT_VERSIONED.match(name) for name in assets)
 
     if not tag:
         return {"tag": "", "build": "false", "reason": "没有拿到 tag，无法发布",
@@ -68,7 +67,7 @@ def plan(event: str, tag: str, assets: list[str]) -> dict[str, str]:
         reason = "手动触发" + ("（release 已有全量包，仍按手动请求重建）" if have_full else "")
         build = True
     elif event == "release":
-        if not any(marker in assets for marker in APP_MARKERS):
+        if not (have_full or have_slim or have_hot):
             reason = ("这个 release 不是应用通道发的（没有 %s/%s）—— 终端 release 之类，跳过"
                       % (SLIM, HOT))
             build = False

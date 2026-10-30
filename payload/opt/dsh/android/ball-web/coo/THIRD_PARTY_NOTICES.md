@@ -40,5 +40,6 @@ DeepSeek 女仆装二创参考 ZipZipPipe。当前贴图 `tex/skirt.png` 上可�
 
 ## 本包的许可
 
-AGPL-3.0-or-later,见 [`LICENSE`](LICENSE);`tex/` 与 `feat/` 的贴图除外,见上。
+AGPL-3.0-or-later;完整文本见仓库根目录 `LICENSES/AGPL-3.0.txt`，APK 内见
+`assets/licenses/AGPL-3.0.txt`。`tex/` 与 `feat/` 的贴图除外,见上。
 并入 Coopanion 之前的版本(独立仓库 `Pal-AI-Lab/cortico-world-desktop-pet` 里的历史)是 MIT。
