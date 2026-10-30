@@ -49,7 +49,7 @@ jobs:
       build: ${{ steps.plan.outputs.build }}
       have_slim: ${{ steps.plan.outputs.have_slim }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag }}
           fetch-depth: 1
@@ -87,7 +87,7 @@ jobs:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.plan.outputs.tag }}
           fetch-depth: 1
