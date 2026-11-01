@@ -124,11 +124,7 @@ docs/character-wake-and-size-validation.md
 docs/ciallo-character-and-navigation-validation.md
 docs/compliance-test.mjs
 docs/dsh-pi-ai-media-test.mjs
-docs/images/icon-day.png
-docs/images/icon-night.png
 docs/images/main.jpg
-docs/images/settings.jpg
-docs/images/terminal.jpg
 docs/link-test.mjs
 docs/native-memory.md
 docs/page-tools-media-test.mjs
@@ -555,7 +551,6 @@ scripts/release_hot.sh
 scripts/release_notes.py
 scripts/release_terminal.sh
 scripts/render_ball_icons.py
-scripts/render_icon.py
 scripts/restore-build-toolchain.sh
 scripts/serve_apk.py
 scripts/smoke-market-llm.sh

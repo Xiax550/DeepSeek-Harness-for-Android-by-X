@@ -116,11 +116,8 @@ jobs:
       - name: 交叉编译器 + 图标工具 + apksig（按 sha256 固定）
         run: |
           sudo apt-get update
-          # librsvg2-bin = 光栅化 assets/*.svg 的 rsvg-convert；python3-pil 是
-          # render_icon.py / render_ball_icons.py 的依赖 —— 第 7 次 CI 就是缺它俩
-          # 死在 "0/7 icons: need rsvg-convert (librsvg) for the icon"。
-          sudo apt-get install -y gcc-aarch64-linux-gnu librsvg2-bin python3-pil
-          rsvg-convert --version
+          # Launcher icons are generated from the maintainer-provided PNG with Pillow.
+          sudo apt-get install -y gcc-aarch64-linux-gnu python3-pil
           python3 -c "from PIL import Image; print('PIL ok')"
           # apksig 在 **Google Maven**，不在 Maven Central（repo1 上 9.x 一律 404 ——
           # 第一次真跑就栽在这里）。URL 形式与 scripts/restore-build-toolchain.sh 一致。
