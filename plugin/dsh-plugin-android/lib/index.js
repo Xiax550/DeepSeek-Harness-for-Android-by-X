@@ -38,6 +38,7 @@
 
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { installMemory } from "./memory.js";
 
 const ANDROID_SURFACE_SECTION = "app:android-surface";
 
@@ -706,6 +707,7 @@ function installBallSurface(ctx, cfg) {
 }
 
 export function apply(ctx, config = {}) {
+  installMemory(ctx);
   ctx.inject(["systemPrompt"], (scope) => {
     let order = 10150;
     try {

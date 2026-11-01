@@ -304,8 +304,16 @@ public final class MainActivity extends Activity implements ServerBus.Listener, 
     }
 
     @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        BallService.userInteraction();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        BallService.userInteraction();
+        Updates.automatic("launch", null);
         // Covers the first run after returning from the overlay-permission page,
         // and reconnects the doll if the system rebuilt the activity.
         BallService.restore(this);

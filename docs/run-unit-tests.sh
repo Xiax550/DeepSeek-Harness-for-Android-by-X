@@ -40,6 +40,8 @@ javac -encoding UTF-8 -source 8 -target 8 -nowarn -d "$OUT" \
   "$ROOT/app/java/com/dha/harness/ScreenAwakeLeases.java" \
   "$ROOT/app/java/com/dha/harness/BallOutput.java" \
   "$ROOT/app/java/com/dha/harness/BallResultPolicy.java" \
+  "$ROOT/app/java/com/dha/harness/BallRestPolicy.java" \
+  "$ROOT/app/java/com/dha/harness/UpdatePolicy.java" \
   "$ROOT/docs/unit/dev/dsh/android/HotVersionTest.java" \
   "$ROOT/docs/unit/dev/dsh/android/PayloadMarkerTest.java" \
   "$ROOT/docs/unit/dev/dsh/android/UnpackPlanTest.java" \
@@ -51,10 +53,12 @@ javac -encoding UTF-8 -source 8 -target 8 -nowarn -d "$OUT" \
   "$ROOT/docs/unit/dev/dsh/android/ScreenAwakePolicyTest.java" \
   "$ROOT/docs/unit/dev/dsh/android/ScreenAwakeLeasesTest.java" \
   "$ROOT/docs/unit/dev/dsh/android/BallOutputTest.java" \
-  "$ROOT/docs/unit/dev/dsh/android/BallResultPolicyTest.java"
+  "$ROOT/docs/unit/dev/dsh/android/BallResultPolicyTest.java" \
+  "$ROOT/test-java/com/dha/harness/BallRestPolicyTest.java" \
+  "$ROOT/test-java/com/dha/harness/UpdatePolicyTest.java"
 
 failed=0
-for test in HotVersionTest PayloadMarkerTest UnpackPlanTest RecoveryPlanTest BallSideTest ThemeChoiceTest MountPathTest ScreenshotPathsTest ScreenAwakePolicyTest ScreenAwakeLeasesTest BallOutputTest BallResultPolicyTest; do
+for test in HotVersionTest PayloadMarkerTest UnpackPlanTest RecoveryPlanTest BallSideTest ThemeChoiceTest MountPathTest ScreenshotPathsTest ScreenAwakePolicyTest ScreenAwakeLeasesTest BallOutputTest BallResultPolicyTest BallRestPolicyTest UpdatePolicyTest; do
   if ! java -cp "$OUT" "com.dha.harness.$test"; then
     failed=1
   fi

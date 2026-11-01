@@ -14,7 +14,6 @@
         "@deepseek-ai/dsh-base",
         "@deepseek-ai/dsh-web-app",
         "dshmarket",
-        "meow-memory",
         "@local/agent-browser-viewer",
         "@local/dsh-ball-summarizer"
       ]

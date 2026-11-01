@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const { DatabaseSync } = require('node:sqlite');
+const { writeFileSync } = require('node:fs');
+const before = new DatabaseSync('/sdcard/Download/DHA-memory-before-review-20261031.db', { readOnly: true });
+const current = new DatabaseSync('/root/.dsh/dha-memory/memory.db', { readOnly: true });
+const rows = before.prepare('SELECT * FROM memories').all();
+for (const row of rows) assert.deepEqual(current.prepare('SELECT * FROM memories WHERE id=?').get(row.id), row);
+const result = { at: new Date().toISOString(), originalRowsPreserved: rows.length, currentRows: current.prepare('SELECT count(*) AS n FROM memories').get().n, integrity: current.prepare('PRAGMA integrity_check').get().integrity_check };
+assert.equal(result.integrity, 'ok');
+writeFileSync('/sdcard/Download/dha-review-preservation.json', JSON.stringify(result));
+console.log(JSON.stringify(result));
+before.close(); current.close();

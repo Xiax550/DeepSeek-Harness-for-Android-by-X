@@ -166,6 +166,9 @@ python3 "$ROOT/scripts/pack_apk.py" "$BUILD/base.apk" "$BUILD/unsigned.apk" \
   "assets/licenses/AUTHORS.md:$ROOT/AUTHORS.md" \
   "assets/licenses/NOTICE.md:$ROOT/NOTICE.md" \
   "assets/licenses/THIRD_PARTY.md:$ROOT/THIRD_PARTY.md" \
+  "assets/licenses/DEPENDENCIES.md:$ROOT/DEPENDENCIES.md" \
+  "assets/licenses/ARTWORK_RIGHTS.md:$ROOT/ARTWORK_RIGHTS.md" \
+  "assets/licenses/REFERENCE_CHARACTER_NOTICE.md:$ROOT/payload/opt/dsh/android/ball-web/reference/NOTICE.md" \
   "assets/licenses/OPEN_SOURCE_COMPLIANCE.md:$ROOT/OPEN_SOURCE_COMPLIANCE.md" \
   "assets/licenses/Apache-2.0.txt:$ROOT/LICENSES/Apache-2.0.txt" \
   "assets/licenses/AGPL-3.0.txt:$ROOT/LICENSES/AGPL-3.0.txt" \

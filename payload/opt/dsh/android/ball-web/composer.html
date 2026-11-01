@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>DSH 悬浮球</title>
 <style>
-:root{--surface:rgba(13,15,19,.68);--hairline:rgba(255,255,255,.20);--ink:#fff;--size:58px;
-  --input-height:58px;--control-size:50px;
+:root{--surface:rgba(13,15,19,.68);--hairline:rgba(255,255,255,.20);--ink:#fff;--size:54px;
+  --input-height:44px;--control-size:44px;
   /* One shadow entry per state, in the same order, so the two states interpolate.
      Order: drop shadow, tighter second shadow, inner bottom shade, top highlight.
      The window is exactly the ball's square when closed, so an OUTER shadow has
@@ -101,7 +101,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 /* Reduced motion: the ring is there, it just does not turn. */
 @media (prefers-reduced-motion:reduce){
   #bar.spinning #ring{animation:none}
-  #cooDoll{transition:none}
+  #figureDoll{transition:none}
 }
 /* 6 dp above and below the text: a two-line line no longer sits flush against the
    capsule's edges, and the whale (centred, unchanged) keeps its own square. */
@@ -154,16 +154,35 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 #cap{position:relative;flex:none;width:var(--size);height:var(--size);display:grid;place-items:center;
   background:transparent;border:0;border-radius:0;overflow:visible;
   transform-origin:50% 80%;transition:transform .12s ease}
+#sleepMark{position:absolute;left:16%;top:35%;z-index:4;pointer-events:none;
+  color:#e6edff;font:700 10px/1 var(--font);text-shadow:0 1px 2px #34344d;
+  white-space:nowrap;opacity:0;visibility:hidden;transform:rotate(-12deg)}
+#sleepMark span{display:inline-block;opacity:0}
+#sleepMark span:nth-child(2){position:relative;top:-3px;font-size:11px}
+#sleepMark span:nth-child(3){position:relative;top:-6px;font-size:12px}
+#bar.sleeping #sleepMark{opacity:1;visibility:visible}
+#bar.sleeping #sleepMark span{animation:sleepZ 4.8s ease-in-out infinite both}
+#bar.sleeping #sleepMark span:nth-child(2){animation-delay:1.1s}
+#bar.sleeping #sleepMark span:nth-child(3){animation-delay:2.2s}
+@keyframes sleepZ{
+  0%{opacity:0;transform:translateY(3px) scale(.94)}
+  18%,30%{opacity:1;transform:translateY(0) scale(1)}
+  55%,100%{opacity:0;transform:translateY(-4px) scale(1.03)}
+}
+@media (prefers-reduced-motion:reduce){
+  #bar.sleeping #sleepMark span{animation:none;opacity:1}
+}
+#bar.mirror #sleepMark{left:auto;right:16%}
 #bar.ball.pressed #cap{transform:scale(.91)}
 #bar.morphing #cap{transition:none;animation:none!important;transform:none!important}
 #whale,#legacyWhale,#plane{position:absolute;display:block}
 #legacyWhale{display:none}
 #whale{width:88%;height:88%;object-fit:contain;background:transparent;
   border:0;border-radius:0;clip-path:none;overflow:visible;z-index:1}
-#cooDoll{display:none;position:absolute;width:96%;height:96%;overflow:visible;z-index:2;
+#figureDoll{display:none;position:absolute;width:96%;height:96%;overflow:visible;z-index:2;
   transition:none}
-#bar.coo-ready #whale{display:none}
-#bar.coo-ready #cooDoll{display:block}
+#bar.figure-ready #whale{display:none}
+#bar.figure-ready #figureDoll{display:block}
 #inputPill{display:none;position:absolute;left:0;right:0;top:0!important;
   height:var(--input-height);align-items:center;gap:2px;
   border:1px solid var(--hairline);border-radius:999px;
@@ -184,9 +203,9 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   color:var(--ink);-webkit-appearance:none;appearance:none;cursor:pointer}
 #send{width:var(--control-size);height:100%}
 #send svg{width:46%;height:46%;display:block;pointer-events:none}
-#close{width:calc(var(--control-size) - 12px);height:100%;color:rgba(255,255,255,.45)}
+#close{width:36px;height:100%;color:rgba(255,255,255,.65)}
 #close svg{width:40%;height:40%;display:block;pointer-events:none}
-#watch{display:none;position:relative;width:40px;height:100%;color:rgba(255,255,255,.58)}
+#watch{display:none;position:relative;width:36px;height:100%;color:rgba(255,255,255,.58)}
 #bar.watchable #watch{display:grid}
 #bar.bubble #watch{display:none}
 #watch svg{width:50%;height:50%;display:block;pointer-events:none}
@@ -214,7 +233,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 @keyframes pulse{0%{box-shadow:inset 0 0 0 0 rgba(255,255,255,.45)}70%{box-shadow:inset 0 0 0 12px rgba(255,255,255,0)}100%{box-shadow:inset 0 0 0 0 rgba(255,255,255,0)}}
 @media (prefers-reduced-motion:reduce){
   #bar.listening::after{animation:none}
-  #cooDoll{transition:none}
+  #figureDoll{transition:none}
 }
 </style>
 </head>
@@ -223,9 +242,10 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   <div id="cap">
     <div id="badge" aria-hidden="true"></div>
     <div id="ring" aria-hidden="true"></div>
+    <div id="sleepMark" aria-hidden="true"><span>z</span><span>z</span><span>Z</span></div>
     <canvas id="whale" width="256" height="256" aria-hidden="true"></canvas>
-    <svg id="cooDoll" viewBox="-12 -8 280 280" aria-hidden="true">
-      <g id="cooMirror"><g id="cooRoot"></g></g>
+    <svg id="figureDoll" viewBox="-12 -8 280 280" aria-hidden="true">
+      <g id="figureMirror"><g id="figureRoot"></g></g>
     </svg>
     <svg id="legacyWhale" viewBox="0 0 108 108" aria-hidden="true">
                 <g transform="translate(25.92,25.92) scale(1.1232)">
@@ -266,8 +286,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   <div id="bubbleDismiss" aria-hidden="true">×</div>
 </div>
 <div id="measure" aria-hidden="true"></div>
-<script src="./coo/model.js"></script>
-<script src="./coo/coo-bundle.js"></script>
+<script src="./reference/model.js"></script>
+<script src="./reference/figure.js"></script>
 <script>
 (function () {
   "use strict";
@@ -325,7 +345,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   var ringEl = document.getElementById("ring");
   var measureEl = document.getElementById("measure");
 
-  var DEFAULT_SIZE = 58;   // dp, the app's default ball diameter
+  var DEFAULT_SIZE = 54;   // dp, the app's default ball diameter
   var PLACEHOLDER = "例如：把我刚才那条消息发到微信里";
   var LISTEN_PLACEHOLDER = "正在听…";
 
@@ -359,12 +379,14 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     paintAt: 0
   };
   var dollCtx = whale.getContext("2d", { alpha: true });
-  var cooDoll = document.getElementById("cooDoll");
-  var cooMirror = document.getElementById("cooMirror");
-  var cooRoot = document.getElementById("cooRoot");
-  var cooFigure = null;
-  var cooStarting = false;
+  var figureDoll = document.getElementById("figureDoll");
+  var figureMirror = document.getElementById("figureMirror");
+  var figureRoot = document.getElementById("figureRoot");
+  var characterFigure = null;
+  var figureStarting = false;
+  var figureGeneration = 0;
   var customDoll = false;
+  var selectedImage = null;
   var currentSide = "left";
   var turnTarget = 1;
   var turnValue = 1;
@@ -374,53 +396,38 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   var idleLookY = 0, idleLookTargetY = 0;
   var idleLookTimer = 0, idleLookReturnTimer = 0;
   var rareGestureKind = "", rareGestureStart = 0, rareGestureTimer = 0;
-  var cooTime = 0;
-  var cooLast = 0;
-  var COO_FACES = {
-    neutral: {
-      gap: [50, 50], eyes: [
-        { shape: "ring", rx: 16, ry: 16 },
-        { shape: "ring", rx: 16, ry: 16 }
-      ]
-    },
-    happy: {
-      gap: [58, 58], blush: .45,
-      eyes: [{ shape: "up" }, { shape: "up" }]
-    },
-    thinking: {
-      gap: [46, 46],
-      eyes: [
-        { shape: "ring", rx: 14, ry: 15, dx: 3, dy: -4 },
-        { shape: "ring", rx: 14, ry: 15, dx: 3, dy: -4 }
-      ]
-    }
-  };
-  var COO_LEGS = [[104, 212, 104, 241], [150, 212, 150, 241]];
-  async function initCoo() {
-    if (cooStarting || cooFigure) return;
-    cooStarting = true;
+  var gestureDuration = 2400, expressionUntil = 0, reactionExpression = "neutral";
+  var nextBlinkAt = performance.now() + 4000, blinkUntil = 0;
+  var gestureKinds = ["earTwitch", "nod", "tilt", "wave", "stretch", "sideLook"];
+  var figureTime = 0;
+  var resting = false, restAmount = 0, restChangedAt = 0, restFrom = 0;
+  var REST_TRANSITION_MS = 1700;
+  var idleStage = 0, sleepAmount = 0, sleepFrom = 0, sleepChangedAt = 0;
+  var SLEEP_TRANSITION_MS = 2400;
+  var wakeMotion = null;
+  var renderFrame = 0, renderTimer = 0, renderedFrames = 0;
+  var pagePaused = false;
+  async function initReference() {
+    if (figureStarting || characterFigure) return;
+    var generation = ++figureGeneration;
+    figureStarting = true;
     try {
-      var base = new URL("./coo/", window.location.href);
-      if (!window.CooFigure || !window.CooRig) throw new Error("Coopanion bundle missing");
-      var model = window.COO_MODEL;
-      if (!model) throw new Error("Coopanion model missing");
-      cooFigure = await window.CooFigure.createWhaleFigure(base, {
-        kit: { createRig: window.CooRig.createRig },
-        model: model
-      });
-      cooDoll.setAttribute("viewBox", model.view.join(" "));
-      // The first side push can arrive before the async rig supplies its final
-      // viewBox. Reapply after that so the vector mirror uses the real centre.
+      if (!window.ReferenceCharacter) throw new Error("Reference character renderer missing");
+      var loaded = await window.ReferenceCharacter.create(new URL("./reference/", window.location.href));
+      if (generation !== figureGeneration || customDoll) { loaded.dispose(); return; }
+      characterFigure = loaded;
+      figureDoll.setAttribute("viewBox", "0 0 256 256");
       setMirror();
-      bar.classList.add("coo-ready");
-      toBall("log", "composer.html Coopanion rig ready");
+      bar.classList.add("figure-ready");
+      toBall("log", "composer.html reference-only character ready");
     } catch (error) {
-      toBall("log", "composer.html Coopanion rig failed: " + String(error));
-      window.__cooError = String(error);
-      cooFigure = null;
-      bar.classList.remove("coo-ready");
+      if (generation !== figureGeneration) return;
+      toBall("log", "composer.html reference character failed: " + String(error));
+      window.__figureError = String(error);
+      characterFigure = null;
+      bar.classList.remove("figure-ready");
     } finally {
-      cooStarting = false;
+      if (generation === figureGeneration) figureStarting = false;
     }
   }
   function setDollSource(src) {
@@ -431,20 +438,143 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     };
     doll.image.src = src;
   }
+  function queueDollFrame() {
+    if (pagePaused) return;
+    if (resting && idleStage !== 2 && performance.now() - restChangedAt > REST_TRANSITION_MS + 100
+        && performance.now() - sleepChangedAt > SLEEP_TRANSITION_MS + 100) {
+      renderTimer = window.setTimeout(function () {
+        renderTimer = 0;
+        renderFrame = window.requestAnimationFrame(renderDoll);
+      }, 1000);
+    } else {
+      renderFrame = window.requestAnimationFrame(renderDoll);
+    }
+  }
+  function setResting(on) {
+    setIdleStage(on ? 1 : 0);
+  }
+  function setIdleStage(stage) {
+    stage = Number(stage);
+    if (!isFinite(stage) || stage < 0 || stage > 3 || Math.floor(stage) !== stage) return;
+    var next = stage > 0;
+    if (next && (listening || bar.classList.contains("watch-on")
+        || bar.classList.contains("spinning") || bubblePhase === "think" || bubblePhase === "work")) return;
+    if (idleStage === stage) return;
+    updateRestAmount(performance.now());
+    updateSleepAmount(performance.now());
+    var wasWaking = !!wakeMotion;
+    var wakeFromSleep = !next && !reduced() && (idleStage >= 2 || sleepAmount > .02);
+    wakeMotion = null;
+    if (resting !== next) {
+      restFrom = restAmount;
+      // Lift from prone before rising, rather than dissolving straight into standing.
+      restChangedAt = performance.now() + (!next && !reduced() ? sleepAmount * 1200 : 0);
+    }
+    if (wasWaking || (idleStage === 3) !== (stage === 3)) { sleepFrom = sleepAmount; sleepChangedAt = performance.now(); }
+    idleStage = stage;
+    resting = next;
+    bar.classList.toggle("resting", resting);
+    if (stage !== 3) bar.classList.remove("sleeping");
+    if (wakeFromSleep) {
+      var liftMs = 2100 * sleepAmount;
+      wakeMotion = { start: performance.now(), sit: restAmount, sleep: sleepAmount,
+        liftMs: liftMs, riseAt: 350 + liftMs + 450, riseMs: 3000 * restAmount,
+        stretchMs: 2800, phase: "grumpy" };
+      if (idleLookTimer) window.clearTimeout(idleLookTimer);
+      if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
+      if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
+      idleLookTargetY = 0;
+      rareGestureKind = "";
+      expressionUntil = blinkUntil = 0;
+      bar.classList.remove("happy");
+      toBall("log", "character wake: grumpy");
+    }
+    if (resting) {
+      if (idleLookTimer) window.clearTimeout(idleLookTimer);
+      if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
+      if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
+      idleLookTargetY = 0;
+      rareGestureKind = "";
+      expressionUntil = blinkUntil = 0;
+    } else if (!wakeMotion) {
+      scheduleIdleLook();
+      scheduleRareGesture(true);
+      nextBlinkAt = performance.now() + 4000;
+    }
+    if (renderTimer) window.clearTimeout(renderTimer);
+    if (renderFrame) window.cancelAnimationFrame(renderFrame);
+    renderTimer = renderFrame = 0;
+    doll.last = 0;
+    queueDollFrame();
+  }
+  function updateRestAmount(now) {
+    if (wakeMotion) { updateWakeMotion(now); return; }
+    var progress = reduced() ? 1 : Math.max(0, Math.min(1, (now - restChangedAt) / REST_TRANSITION_MS));
+    var eased = progress * progress * (3 - 2 * progress);
+    restAmount = restFrom + ((resting ? 1 : 0) - restFrom) * eased;
+  }
+  function updateSleepAmount(now) {
+    if (wakeMotion) return;
+    var progress = reduced() ? 1 : Math.max(0, Math.min(1, (now - sleepChangedAt) / SLEEP_TRANSITION_MS));
+    var eased = progress * progress * (3 - 2 * progress);
+    sleepAmount = sleepFrom + ((idleStage === 3 ? 1 : 0) - sleepFrom) * eased;
+  }
+  function updateWakeMotion(now) {
+    var wake = wakeMotion, elapsed = Math.max(0, now - wake.start);
+    function ease(value) {
+      value = Math.max(0, Math.min(1, value));
+      return value * value * (3 - 2 * value);
+    }
+    sleepAmount = wake.sleep * (1 - ease((elapsed - 350) / Math.max(1, wake.liftMs)));
+    restAmount = wake.sit * (1 - ease((elapsed - wake.riseAt) / Math.max(1, wake.riseMs)));
+    var stretchAt = wake.riseAt + wake.riseMs;
+    var phase = elapsed < 350 ? "grumpy" : elapsed < wake.riseAt ? "lifting"
+      : elapsed < stretchAt ? "rising" : elapsed < stretchAt + wake.stretchMs ? "stretching" : "normal";
+    if (wake.phase !== phase) {
+      wake.phase = phase;
+      toBall("log", "character wake: " + phase);
+    }
+    if (phase === "normal") {
+      wakeMotion = null;
+      restFrom = restAmount = sleepFrom = sleepAmount = 0;
+      restChangedAt = sleepChangedAt = now;
+      nextBlinkAt = now + 4000;
+      scheduleIdleLook();
+      scheduleRareGesture(true);
+    }
+  }
+  function finishWakeForWork() {
+    if (!wakeMotion) return;
+    updateWakeMotion(performance.now());
+    wakeMotion = null;
+    restFrom = restAmount;
+    sleepFrom = sleepAmount;
+    sleepChangedAt = performance.now();
+    restChangedAt = sleepChangedAt + (reduced() ? 0 : sleepAmount * 1200);
+    blinkUntil = 0;
+    nextBlinkAt = sleepChangedAt + 4000;
+    scheduleIdleLook();
+    scheduleRareGesture(true);
+  }
   function renderDoll(now) {
-    window.requestAnimationFrame(renderDoll);
+    renderFrame = 0;
+    queueDollFrame();
     var morphingNow = bar.classList.contains("morphing");
     var activeNow = morphingNow || bar.classList.contains("spinning")
       || bar.classList.contains("pressed") || bar.classList.contains("happy");
     var frameMs = morphingNow ? 16 : activeNow ? 33 : 50;
     if (now - doll.paintAt < frameMs) return;
     doll.paintAt = now;
+    renderedFrames++;
     if (document.hidden) {
       doll.last = now;
       return;
     }
     var dt = doll.last === 0 ? 1 / 60 : Math.min(1 / 20, (now - doll.last) / 1000);
     doll.last = now;
+    updateRestAmount(now);
+    updateSleepAmount(now);
+    bar.classList.toggle("sleeping", idleStage === 3 && sleepAmount > .95);
     var morphing = bar.classList.contains("morphing");
     var pressed = bar.classList.contains("pressed");
     var happy = bar.classList.contains("happy");
@@ -481,58 +611,52 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     var rareGesture = null;
     var rareElapsed = rareGestureKind ? (now - rareGestureStart) / 1000 : 0;
     if (rareGestureKind) {
-      var rareAllowed = !morphing && !pressed && !happy && !spinning
-        && bar.classList.contains("ball");
-      if (rareElapsed >= 1.2 || !rareAllowed) {
+      var rareAllowed = !morphing && !pressed && !spinning && !resting
+        && !listening && !bar.classList.contains("watch-on") && !reduced()
+        && bubblePhase !== "think" && bubblePhase !== "work";
+      if (rareElapsed >= gestureDuration / 1000 || !rareAllowed) {
         rareGestureKind = "";
       } else {
-        rareGesture = { kind: rareGestureKind, k: Math.min(1, rareElapsed / 1.2) };
+        rareGesture = { kind: rareGestureKind, k: Math.min(1, rareElapsed * 1000 / gestureDuration) };
       }
     }
-    if (cooFigure) {
-      if (!morphing && !reduced()) cooTime += dt;
-      var faceName = (happy || pressed) ? "happy"
-        : bar.classList.contains("spinning") ? "thinking" : "neutral";
-      var blinkPhase = cooTime % 4.2;
-      var blink = blinkPhase > 4.02
-        ? Math.sin(Math.PI * (blinkPhase - 4.02) / .18) : 0;
-      blink = Math.max(blink, turnBlink);
+    var expression = idleStage >= 2 ? "sleepy" : resting ? "neutral" : listening || spinning || bar.classList.contains("watch-on")
+      || bubblePhase === "think" || bubblePhase === "work" ? "curious"
+      : now < expressionUntil ? reactionExpression : bubbleResultMode ? "happy" : "neutral";
+    if (wakeMotion) {
+      expression = wakeMotion.phase === "stretching" ? "sleepy" : "pout";
+      if (wakeMotion.phase === "stretching") rareGesture = { kind: "stretch",
+        k: Math.max(0, Math.min(1, (now - wakeMotion.start - wakeMotion.riseAt - wakeMotion.riseMs) / wakeMotion.stretchMs)) };
+    }
+    if (!resting && !wakeMotion && !pagePaused && !reduced() && now >= nextBlinkAt) {
+      blinkUntil = now + 150;
+      nextBlinkAt = now + 4000 + Math.random() * 3000;
+    }
+    if (turnBlink || now < blinkUntil) expression = "blink";
+    if (characterFigure) {
+      if (!morphing && !reduced()) figureTime += dt;
       try {
-        cooFigure.draw(cooRoot, COO_FACES[faceName], {
-          t: cooTime,
-          mode: "idle",
-          face: faceName,
-          modeT: cooTime,
+        characterFigure.draw(figureRoot, null, {
+          t: figureTime,
+          side: currentSide,
+          reducedMotion: reduced(),
           look: [
-            turnValue * 5.4 + Math.sin(cooTime * .72) * 1.1,
+            turnValue * 5.4 + Math.sin(figureTime * .72) * 1.1,
             idleLookY
           ],
-          legs: COO_LEGS,
-          low: morphing ? 0 : Math.sin(cooTime * 1.35) * 1.5,
-          blink: blink,
-          eyeClose: 0,
-          talk: 0,
-          swing: 0,
-          drowse: 0,
-          sit: 0,
-          // The CSS wrapper owns facing so a delayed turn can animate the
-          // whole doll. Letting the rig flip immediately as well caused the
-          // character to snap to the destination before the turn began.
-          facing: 1,
-          tilt: pressed && !morphing ? 4 : Math.sin(cooTime * .55) * .35,
-          lean: 0,
-          bodyTurn: 0,
-          back: 0,
-          groupRot: 0,
-          gesture: rareGesture
+          sit: restAmount,
+          sleep: sleepAmount,
+          drowsy: idleStage === 2,
+          gesture: rareGesture,
+          expression: expression
         });
       } catch (error) {
-        toBall("log", "composer.html Coopanion draw failed: " + String(error));
-        cooFigure = null;
-        bar.classList.remove("coo-ready");
+        toBall("log", "composer.html reference character draw failed: " + String(error));
+        characterFigure = null;
+        bar.classList.remove("figure-ready");
       }
     }
-    if (!cooFigure && dollCtx) {
+    if (!characterFigure && customDoll && dollCtx) {
       dollCtx.clearRect(0, 0, whale.width, whale.height);
       if (doll.ready) {
         dollCtx.save();
@@ -610,7 +734,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   function mirrored() { return currentSide === "right"; }
   function applySize(next) {
     var value = Number(next);
-    if (isFinite(value) && value > 0) size = Math.max(16, Math.round(value));
+    if (isFinite(value) && value > 0) size = Math.max(54, Math.round(value));
     document.documentElement.style.setProperty("--size", size + "px");
   }
   function applyMirrorClass() {
@@ -618,9 +742,9 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     else bar.classList.remove("mirror");
     // Mirror inside the SVG coordinate system. A CSS scaleX layer is resampled
     // by Android WebView and made the right-side character look compressed.
-    var view = cooDoll.viewBox.baseVal;
+    var view = figureDoll.viewBox.baseVal;
     var mirrorX = view.x * 2 + view.width;
-    cooMirror.setAttribute("transform",
+    figureMirror.setAttribute("transform",
       mirrored() ? "translate(" + mirrorX + " 0) scale(-1 1)" : "");
   }
   function setMirror() {
@@ -628,9 +752,10 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   }
   function animateSide(nextSide) {
     var target = nextSide === "right" ? "right" : "left";
-    if (target === currentSide) return;
     if (blinkSwitchTimer) window.clearTimeout(blinkSwitchTimer);
     if (blinkEndTimer) window.clearTimeout(blinkEndTimer);
+    blinkSwitchTimer = blinkEndTimer = 0;
+    if (target === currentSide) { turnBlink = 0; return; }
     // Two-dimensional characters turn by closing their eyes for a beat. The
     // face never leaves; only the open-eye pose changes at the blink's peak.
     turnBlink = 1;
@@ -661,6 +786,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     sideInitialized = true;
   }
   function scheduleIdleLook() {
+    if (resting || wakeMotion) return;
     if (idleLookTimer) window.clearTimeout(idleLookTimer);
     var waitMs = 10000 + Math.floor(Math.random() * 30000);
     toBall("log", "idle look: next glance in " + Math.round(waitMs / 1000) + "s");
@@ -677,17 +803,33 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
       }, 1200);
     }, waitMs);
   }
-  function scheduleRareGesture() {
-    if (reduced()) return;
+  function react(kind, expression) {
+    if (gestureKinds.indexOf(kind) === -1 || resting || wakeMotion || pagePaused || listening
+        || bar.classList.contains("spinning") || bar.classList.contains("watch-on")
+        || bubblePhase === "think" || bubblePhase === "work") return false;
+    var now = performance.now();
+    if (rareGestureKind && now - rareGestureStart < 300) return false;
+    reactionExpression = ["happy", "surprised", "curious", "pout", "sleepy"].indexOf(expression) >= 0
+      ? expression : kind === "tilt" ? "curious" : "happy";
+    var recovery = reduced() ? 0 : restAmount > .02 ? Math.max(0, restChangedAt + REST_TRANSITION_MS - now) : 0;
+    gestureDuration = kind === "sideLook" ? 4000 : 2400;
+    expressionUntil = now + recovery + gestureDuration;
+    rareGestureKind = reduced() ? "" : kind;
+    rareGestureStart = now + recovery;
+    return true;
+  }
+  function scheduleRareGesture(first) {
+    if (reduced() || resting || wakeMotion || pagePaused) return;
     if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
-    var waitMs = 30000 + Math.floor(Math.random() * 120000);
+    var waitMs = first ? 6000 + Math.floor(Math.random() * 4000)
+      : 15000 + Math.floor(Math.random() * 20000);
     rareGestureTimer = window.setTimeout(function () {
       rareGestureTimer = 0;
-      if (Math.random() < .28) {
-        var kinds = ["shiver", "flap", "nod"];
-        rareGestureKind = kinds[Math.floor(Math.random() * kinds.length)];
-        rareGestureStart = performance.now();
-        toBall("log", "rare gesture: " + rareGestureKind);
+      if (bar.classList.contains("ball") && !bar.classList.contains("pressed")) {
+        var kind = gestureKinds[Math.floor(Math.random() * gestureKinds.length)];
+        var expression = kind === "earTwitch" ? "surprised" : kind === "stretch" ? "sleepy"
+          : kind === "tilt" ? (Math.random() < .25 ? "pout" : "curious") : "happy";
+        react(kind, expression);
       }
       scheduleRareGesture();
     }, waitMs);
@@ -723,12 +865,14 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
      on the cap so the continuously animated whale and the window never compete
      for the same transform. */
   function pointer(kind, dx, dy) {
+    setResting(false);
     if (kind === "down") {
       if (!expanded) bar.classList.add("pressed");
       return;
     }
     if (kind === "move" || kind === "drop") {
       bar.classList.remove("pressed");
+      if (kind === "drop") react("earTwitch", "surprised");
       return;
     }
     if (kind === "hold") { setListening(true); return; }
@@ -897,6 +1041,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   }
   function setListening(on) {
     listening = !!on;
+    if (listening) setResting(false);
+    if (listening) finishWakeForWork();
     if (listening) bar.classList.add("listening");
     else bar.classList.remove("listening");
     input.setAttribute("placeholder", listening ? LISTEN_PLACEHOLDER : PLACEHOLDER);
@@ -908,6 +1054,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   }
   function setWatchActive(on) {
     var active = !!on;
+    if (active) setResting(false);
+    if (active) finishWakeForWork();
     bar.classList.toggle("watch-on", active);
     watchButton.classList.toggle("on", active);
     watchButton.setAttribute("aria-pressed", active ? "true" : "false");
@@ -916,15 +1064,18 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   }
   /** The app calls this once the window is on the bar's rect and focusable. */
   function open() {
+    setResting(false);
     applySize(appSize());
     refreshSide();
     // The input pill now sits above the doll; the doll stays on screen at its
     // original position and remains the visual anchor of the overlay.
     bar.classList.remove("ball", "landed");
     bar.classList.remove("morphing");
-    bar.classList.add("full", "open", "happy");
+    bar.classList.add("full", "open");
+    if (!wakeMotion) bar.classList.add("happy");
     window.setTimeout(function () { bar.classList.remove("happy"); }, 520);
     expanded = true;
+    react("wave", "happy");
   }
   /** Where the app says this window's top-left is, in dp (see screenRect). */
   function at(x, y) {
@@ -1101,6 +1252,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   }
   /** A status, rendered on the ball. The app does the window, this does the text. */
   function bubble(phase, text) {
+    if (phase !== "idle") setResting(false);
+    if (phase === "think" || phase === "work") finishWakeForWork();
     if (expanded) return;                     // the typing bar owns the window
     var wanted = (phase === null || phase === undefined || phase === "") ? "idle" : String(phase);
     var label = (text === null || text === undefined) ? "" : String(text);
@@ -1226,6 +1379,17 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
      drawn in its own window. Everything that used to move a rect in here is now
      the app moving the window, so pointer() only does the press feedback. */
   window.BallUI = {
+    resting: setResting,
+    idleStage: setIdleStage,
+    restInfo: function () {
+      return { resting: resting, stage: idleStage, sleep: sleepAmount, amount: restAmount, frames: renderedFrames,
+        transitioning: Math.abs(restAmount - (resting ? 1 : 0)) > .001
+          || Math.abs(sleepAmount - (idleStage === 3 ? 1 : 0)) > .001,
+        durationMs: REST_TRANSITION_MS, wakePhase: wakeMotion ? wakeMotion.phase : "",
+        wakeDurationMs: wakeMotion ? wakeMotion.riseAt + wakeMotion.riseMs + wakeMotion.stretchMs : 0 };
+    },
+    characterInfo: function () { return characterFigure ? characterFigure.info() : null; },
+    react: react,
     expand: expand,
     collapse: collapse,
     collapseDone: collapseDone,
@@ -1252,6 +1416,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     refresh: function () {
       applySize(appSize());
       refreshSide();
+      applyImage();
       report("refresh");
     },
     isExpanded: function () { return expanded; },
@@ -1269,29 +1434,62 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 
   /* -------------------------------------------------------------------- boot */
   function applyImage() {
-    // A selected still image keeps using the lightweight canvas. With no custom
-    // image, mount the full Coopanion layered whale rig.
+    // Custom still images use the lightweight canvas; otherwise mount the new figure.
     var chosen = fromBall("image");
+    chosen = typeof chosen === "string" ? chosen : "";
+    if (chosen === selectedImage && (customDoll || characterFigure || figureStarting)) return;
+    selectedImage = chosen;
     customDoll = typeof chosen === "string" && /\.(png|jpe?g|webp)$/i.test(chosen);
     if (customDoll) {
+      figureGeneration++;
+      figureStarting = false;
+      if (characterFigure) characterFigure.dispose();
+      characterFigure = null;
+      figureRoot.textContent = "";
+      bar.classList.remove("figure-ready");
       setDollSource("file://" + chosen);
     } else {
-      setDollSource(new URL("../ball/blue-fish.png", window.location.href).href);
-      initCoo();
+      doll.ready = false;
+      dollCtx.clearRect(0, 0, whale.width, whale.height);
+      initReference();
     }
   }
 
   applyImage();
-  window.requestAnimationFrame(renderDoll);
+  queueDollFrame();
+  var lastInteractionReport = -1000;
+  function reportInteraction() {
+    setResting(false);
+    var now = performance.now();
+    if (now - lastInteractionReport < 500) return;
+    lastInteractionReport = now;
+    toComposer("interact");
+  }
+  ["pointerdown", "pointermove", "wheel", "keydown", "input"].forEach(function (event) {
+    document.addEventListener(event, reportInteraction, { passive: true });
+  });
   window.addEventListener("pagehide", function () {
+    pagePaused = true;
+    if (renderTimer) window.clearTimeout(renderTimer);
+    if (renderFrame) window.cancelAnimationFrame(renderFrame);
+    renderTimer = renderFrame = 0;
     if (idleLookTimer) window.clearTimeout(idleLookTimer);
     if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
     if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
+    rareGestureKind = "";
+    expressionUntil = blinkUntil = 0;
+  });
+  window.addEventListener("pageshow", function () {
+    if (!pagePaused) return;
+    pagePaused = false;
+    doll.last = 0;
+    queueDollFrame();
+    if (!resting) { scheduleIdleLook(); scheduleRareGesture(true); }
   });
   applySize(appSize());
   setMirror();
   scheduleIdleLook();
-  scheduleRareGesture();
+  scheduleRareGesture(true);
   input.setAttribute("placeholder", PLACEHOLDER);
   setWatchAvailable(fromBall("watchAvailable"));
   setWatchActive(fromBall("watchActive"));

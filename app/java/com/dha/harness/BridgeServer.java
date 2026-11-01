@@ -439,6 +439,10 @@ public final class BridgeServer {
                 respondJson(out, 200, Updates.check(request.optString("url", "")));
                 return;
             }
+            case "/update/status": {
+                respondJson(out, 200, Updates.status());
+                return;
+            }
             case "/terminal/fetch": {
                 // The slim shell ships without the runtime; this pulls the one
                 // published for its terminal version. Idempotent: a second call
@@ -727,6 +731,7 @@ public final class BridgeServer {
                 }
                 answer.put("ok", true);
                 answer.put("items", BallInbox.pending());
+                answer.put("resting", BallService.stateJson().optBoolean("resting", false));
                 respondJson(out, 200, answer);
                 return;
             }

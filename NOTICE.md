@@ -9,7 +9,8 @@
 
 上游做法：把 Ubuntu rootfs + Node + harness 打进 APK，用 PRoot 在手机本地启动，
 再用 WebView 打开 harness 自己的 Web UI —— 所以手机上得到的是**原样的 harness，不是重做的客户端**。
-本工程沿用这套架构，只做品牌与构建工具的改造。
+本工程沿用这套架构，并持续修改 Android 控制桥、悬浮窗、输入、任务生命周期、
+记忆与插件集成、设置和构建发布流程。具体行为以对应版本源码为准。
 
 ## 2. 本工程实际改动
 
@@ -22,11 +23,13 @@
 | 构建脚本 | 新增 `scripts/build_apk.ps1`（Windows，无需 Gradle/WSL）；上游仅有 Linux 版 `build_apk.sh` |
 | 图标脚本 | 新增 `scripts/make_icons.py`（纯 Python）；上游 `render_icon.py` 依赖 Linux 的 `rsvg-convert` |
 
-**未改动**：harness 本体、Ubuntu rootfs、启动脚本、控制桥（`BridgeServer`）、恢复模式、
-手机助手（`Assist`/`BallService`）逻辑、载荷版本化与热更新机制。
+**修改边界**：使用上游 Harness 作为主体，不等于所有上游文件均未修改。
+启动脚本、控制桥（`BridgeServer`）、手机助手（`Assist`/`BallService`）及
+热更新相关实现包含 DHA 改动；发布时应提供与实际安装包匹配的源码、补丁和测试说明。
 
-载荷（`assets/payload.zip`、`assets/payload.manifest`）取自官方发布的 APK，其 sha256
-与 `BuildInfo.PAYLOAD_VERSION` 完全一致，因此解包/版本化行为与上游完全相同。
+载荷（`assets/payload.zip`、`assets/payload.manifest`）包含 Linux 运行时及
+DHA 叠加改动。实际来源、版本和 SHA-256 应以本次发布的清单为准；不能仅凭
+沿用上游架构就声称整个载荷与上游安装包逐字节相同。
 
 ## 3. 许可
 
@@ -47,8 +50,8 @@ Copyright (c) 2026 夏侯玲文, DHA modifications
 |---|---|---|
 | DeepSeek Harness | 主要 agent runtime 和 Web UI | 见上游项目及其 npm 包声明 |
 | Ubuntu 24.04 arm64 + Node.js | PRoot 沙箱和运行时 | Ubuntu 包分别许可；Node.js 为 MIT |
-| PRoot | 无 root 的 Linux 用户态 | 二进制报告 GPL-2.0-or-later；精确源码仍待确认 |
-| Coopanion 衍生代码 | 浮动角色渲染 | AGPL-3.0-or-later；贴图另有权利限制 |
+| PRoot | 无 root 的 Linux 用户态 | GPL-2.0-or-later；已固定对应源码提交，见 `docs/BUILD-PROOT.md` |
+| 当前参考图角色 | 独立二维网格渲染及新姿态/表情 | 素材来源与发行许可见 `ARTWORK_RIGHTS.md`；历史 Coopanion 衍生代码保持 AGPL-3.0-or-later |
 | Shizuku API | Android 特权通道和虚拟显示 | MIT（RikkaW；见 `LICENSES/Shizuku-API-MIT.txt`） |
 | HiddenApiBypass | Android 虚拟显示所需的隐藏 API 访问 | Apache-2.0 |
 | OkHttp / Okio | Edge 在线语音合成网络客户端 | Apache-2.0 |

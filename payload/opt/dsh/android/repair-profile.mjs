@@ -37,7 +37,6 @@ const seedProfile = join(seed, "profiles", "web");
  */
 const BUNDLES = {
 	"dshmarket": "file:./node_modules/dshmarket",
-	"meow-memory": "0.31.0",
 	"@local/agent-browser-viewer": "file:./node_modules/@local/agent-browser-viewer",
 	"@local/dsh-ball-summarizer": "file:./node_modules/@local/dsh-ball-summarizer"
 };

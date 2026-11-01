@@ -2,7 +2,7 @@
 
 | File | Used by |
 |---|---|
-| `../LICENSE` | Original DHA code and project-owned artwork (MIT) |
+| `../LICENSE` | Original DHA code (MIT); artwork has separate terms in `../ARTWORK_RIGHTS.md` |
 | `Apache-2.0.txt` | HiddenApiBypass, OkHttp, Okio, Vosk, JNA's selected license option, and Apache-licensed model data |
 | `Shizuku-API-MIT.txt` | Shizuku API artifacts (`api`, `aidl`, `shared`, `provider`); copyright RikkaW |
 | `undici-MIT.txt` | Vendored `undici@7.30.0` |
@@ -11,7 +11,7 @@
 | `argparse-Python-2.0.txt` | Vendored `argparse@2.0.1` |
 | `GPL-2.0.txt` | PRoot (the bundled build reports GPL v2 or later) |
 | `GPL-3.0.txt` | GNU components in the Ubuntu rootfs, including `bash.bashrc` |
-| `AGPL-3.0.txt` | Coopanion-derived floating-ball renderer and code |
+| `AGPL-3.0.txt` | Retained or historical Coopanion-derived code; not a license for the new reference artwork |
 | `dshmarket-MIT.txt` | Vendored `dshmarket@1.66.21` plugin market |
 
 The component-to-source inventory and known provenance gaps are maintained in

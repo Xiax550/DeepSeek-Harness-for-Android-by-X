@@ -80,6 +80,7 @@ public final class App extends Application {
         migrateLegacyDistro();
         removeLegacyLocalModel();
         distroDir = new File(distrosDir, activeDistroId());
+        Updates.schedule(false);
     }
 
     /**

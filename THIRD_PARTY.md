@@ -7,7 +7,7 @@
 
 | 内容 | 来源 | 许可 |
 |---|---|---|
-| `assets/dha-icon-source.png` | DHA 维护者提供的项目原图（原文件名 `222.png`，sha256 `e56a54b35dffe941d2623debb42474ebcbd0fd335e25cb7b096a7a2370003799`），生成记录见 `assets/README.md` | 项目 MIT 素材（以维护者有权授权的范围为准） |
+| `assets/dha-icon-source.png` | 维护者确认使用 ChatGPT 创作修改（原文件名 `222.png`，sha256 `e56a54b35dffe941d2623debb42474ebcbd0fd335e25cb7b096a7a2370003799`），见 `assets/README.md` | 维护者授权纳入 DHA 发行；不自动适用代码 MIT，见 `ARTWORK_RIGHTS.md` |
 | `assets/whale.svg` | [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 前端 favicon（品牌标识） | MIT（标识本身是 DeepSeek 的商标） |
 | `app/libs/shizuku-*.jar` | `dev.rikka.shizuku:api|aidl|shared|provider:13.1.5`，从 Maven Central 取（经 aliyun 镜像）；四个 artifact 的 POM 均指向 Shizuku-API 的 MIT 声明 | MIT，版权声明和文本见 [`LICENSES/Shizuku-API-MIT.txt`](LICENSES/Shizuku-API-MIT.txt) |
 | `app/libs/hiddenapibypass-6.1.jar` | `org.lsposed.hiddenapibypass:hiddenapibypass:6.1` | Apache-2.0 |
@@ -17,7 +17,7 @@
 | `app/libs/jna-5.13.0.jar` + `libjnidispatch.so` | `net.java.dev.jna:jna:5.13.0`，从 Maven Central 取 | Apache-2.0 / LGPL-2.1（双许可，本项目按 Apache-2.0 使用） |
 | `app/assets/vosk-model-small-cn.zip` | Vosk `vosk-model-small-cn-0.22`，官方模型经 HF 镜像取得；sha256 `2b34e3c3eb2c61105b1affc4863407965dbf968c63ceb5cd46685f9bd627434a` | Apache-2.0 |
 | `payload/etc/bash.bashrc` | Ubuntu 24.04 的 `/etc/bash.bashrc`，只改了一处（`$(groups)` → `id -Gn 2>/dev/null`） | GPL-3.0 |
-| `payload/opt/dsh/android/ball-web/coo/` | [Pal-AI-Lab/Coopanion](https://github.com/Pal-AI-Lab/Coopanion) 的鲸鱼分层网格渲染器、模型参数和基础贴图，按用户要求接入悬浮玩偶 | 代码 AGPL-3.0-or-later；贴图本体在 `tex/`（25 张身体分件）与 `feat/`（27 张表情件），额外权利限制见该目录 `THIRD_PARTY_NOTICES.md` |
+| `payload/opt/dsh/android/ball-web/reference/` | 当前独立二维网格渲染器及维护者提供的新参考图生成的 7 个姿态、13 个表情补丁；提取记录见 `model.json` | 新渲染器为项目代码；图片单独授权，见 `ARTWORK_RIGHTS.md` 和该目录 `NOTICE.md`。历史 Coopanion 许可不因替换而失效 |
 | `libproot.so`（**不进 git；由 `scripts/fetch-proot.sh` 按固定 sha256 获取**） | 266,152 B，sha256 `f6b0381ab9a066fa620fef0001737fd3cfaf9d22474f013ac48d7861411374ac`。该文件与 OpenMinis 官方 `1.13` 安装包中的 `lib/arm64-v8a/libproot.so` 逐字节一致，也与 `1.12`、`0.22-preview` 中的条目一致。对应源码固定为 OpenMinis/OpenMinis 提交 `4ef29002e88db1e20e462ec2ff46916e8a7dcb45`、PRoot 子模块 `OpenMinis/proot@8cf13e997cdc9472997aae19df8050c073c9a86c`，构建脚本 blob 为 `5d83e99e3214b95acbf8ac76bb32f290801c493b`，talloc 2.4.2 树为 `34887cedc4ca8bf0162904d69e46548ebef99000`。完整取证、获取和复建方法见 [`docs/BUILD-PROOT.md`](docs/BUILD-PROOT.md)，对应源码归档由 `scripts/make-proot-source.sh` 生成并挂在 GitHub Release。上游明示不同 NDK 世代不会产出逐字节相同文件，因此这里绑定的是源码提交和上游发布物，而不是要求源码与 ELF 哈希相同。当前 APK 只带 PRoot 本体；`targetSdk 28` 的既有执行路径继续真机验证，如果以后提高 targetSdk，必须验证并按需补入上游 loader 文件 | **GPL-2.0-or-later**；对应源码已锁定到上述提交，随 Release 提供源码归档 |
 | `payload/home/.dsh/profiles/web/node_modules/dshmarket/`（vendor，固定 1.66.21） | npm [`dshmarket@1.66.21`](https://www.npmjs.com/package/dshmarket)（仓库 [github.com/dsh-market/dsh-market](https://github.com/dsh-market/dsh-market)）—— 插件市场。tarball sha256 `f75bfc1206c91b0d82b939334f1457a5c515cb0cadde75e69b15f8ee87e3da38`，解包内容与 npm tarball `diff -r` 零差异。原始 npm 包含 `LICENSE`；裁剪 vendor 未保留，因此已将对应文本另存于 [`LICENSES/dshmarket-MIT.txt`](LICENSES/dshmarket-MIT.txt) | MIT |
 | `payload/opt/dsh/android/builtin-meow-memory/`（vendor，种子版本 0.31.0） | npm [`meow-memory@0.31.0`](https://www.npmjs.com/package/meow-memory)（仓库 [github.com/Phant0Meow/dsh-meow-memory](https://github.com/Phant0Meow/dsh-meow-memory)）—— 插件市场中的“喵记忆”，首次安装时播种；profile 中已有更高版本时不覆盖 | MIT |
@@ -30,7 +30,7 @@
 
 - Android 工程基于 [`itiswdwa/dsh-android`](https://github.com/itiswdwa/dsh-android) v1.2.1 二次开发，原工程 MIT 声明保留在根目录 `LICENSE`。DHA 的改动和当前代码状态以本仓库为准。
 - 沙箱主体使用 [`deepseek-ai/deepseek-harness`](https://github.com/deepseek-ai/deepseek-harness) 的 `@deepseek-ai/dsh`（默认 `0.2.0-rc.2`）及上游 npm 依赖。
-- 浮动角色渲染代码来自 [`Pal-AI-Lab/Coopanion`](https://github.com/Pal-AI-Lab/Coopanion)，采用 AGPL-3.0-or-later；角色贴图与标志的额外权利限制见其目录下 `THIRD_PARTY_NOTICES.md`。该声明不表示对贴图或商标享有所有权。
+- 历史版本使用 [`Pal-AI-Lab/Coopanion`](https://github.com/Pal-AI-Lab/Coopanion) 的 AGPL-3.0-or-later 渲染代码及另有限制的角色贴图。当前参考图角色不再加载这些身体与表情部件；历史源码和任何保留的衍生代码仍受原许可约束，原声明保留在源码历史中，不能改成项目 MIT。
 - Ubuntu 24.04.5 arm64、Node.js 22.23.2、xterm 5.5.0 / addon-fit 0.10.0 / addon-canvas 0.7.0、`dshmarket` 的运行依赖，以及构建工具和固定版本，见 [`DEPENDENCIES.md`](DEPENDENCIES.md)。
 - Ubuntu apt 包和 DeepSeek Harness 的完整 npm 传递依赖树由构建时取得，仓库没有统一锁定所有传递版本。每次二进制发布应对最终 payload 生成并附上 SBOM；不要把此文件当作完整传递依赖 SBOM。
 `app/libs/` 里放预编译 jar 是刻意的：这样构建不需要联网取 Maven 依赖。
