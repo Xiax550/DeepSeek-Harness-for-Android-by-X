@@ -84,6 +84,7 @@ app/java/com/dha/harness/UpdatePolicy.java
 app/java/com/dha/harness/Updates.java
 app/java/com/dha/harness/VirtualDisplayController.java
 app/java/com/dha/harness/VoskSpeechEngine.java
+app/java/com/dha/harness/WebBootPolicy.java
 app/libs/arm64-v8a/libjnidispatch.so
 app/libs/arm64-v8a/libvosk.so
 app/libs/hiddenapibypass-6.1.jar
@@ -155,6 +156,7 @@ docs/unit/dev/dsh/android/ThemeChoiceTest.java
 docs/unit/dev/dsh/android/UnpackPlanTest.java
 docs/upstream-issue-draft.md
 docs/verify-ondevice.sh
+docs/web-boot-recovery-test.mjs
 patches/android-mobile.css
 patches/android-mobile.js
 patches/apply-hardlink-patch.py
@@ -581,4 +583,5 @@ scripts/verify_meow_backup.mjs
 scripts/version.py
 test-java/com/dha/harness/BallRestPolicyTest.java
 test-java/com/dha/harness/UpdatePolicyTest.java
+test-java/com/dha/harness/WebBootPolicyTest.java
 update.json

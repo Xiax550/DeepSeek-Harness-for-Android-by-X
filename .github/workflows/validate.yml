@@ -78,6 +78,7 @@ jobs:
           python docs/payload-inventory-test.py
           node docs/author-attribution-test.mjs
           node docs/compliance-test.mjs
+          node docs/web-boot-recovery-test.mjs
           node docs/repair-profile-test.mjs
           node --test plugin/dsh-plugin-android/test/ball-size.test.mjs plugin/dsh-plugin-android/test/ball-inbox.test.mjs plugin/dsh-plugin-android/test/ball-surface.test.mjs plugin/dsh-plugin-android/test/memory*.test.mjs
           node docs/link-test.mjs

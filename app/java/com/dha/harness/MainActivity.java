@@ -135,6 +135,8 @@ public final class MainActivity extends Activity implements ServerBus.Listener, 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean panelOpen;
     private String loadedUrl;
+    private int webBootGeneration;
+    private int webBootRetries;
     /** True once the harness page has actually painted, not merely started loading. */
     private boolean pageReady;
     /** True once the server has been asked to start at least once this launch. */
@@ -395,6 +397,7 @@ public final class MainActivity extends Activity implements ServerBus.Listener, 
             public void onPageFinished(WebView view, String url) {
                 pageReady = true;
                 injectBridge();
+                monitorWebBoot(view, ++webBootGeneration, 0);
                 applyAppearance();
                 applyWindowTheme(preferredDark());
                 syncLoading(ServerBus.state());
@@ -1661,6 +1664,30 @@ public final class MainActivity extends Activity implements ServerBus.Listener, 
         } catch (Exception error) {
             App.log("assist permission page: " + error);
         }
+    }
+
+    private void monitorWebBoot(WebView view, int generation, int poll) {
+        if (poll >= 30) return;
+        handler.postDelayed(() -> {
+            if (web != view || generation != webBootGeneration || isFinishing()
+                    || isDestroyed() || !ServerBus.running() || Recovery.active()) return;
+            view.evaluateJavascript(WebBootPolicy.PROBE, result -> {
+                if (web != view || generation != webBootGeneration || isFinishing()
+                        || isDestroyed() || !ServerBus.running() || Recovery.active()) return;
+                if ("\"failed\"".equals(result)) {
+                    if (WebBootPolicy.canRetry(webBootRetries)) {
+                        webBootRetries++;
+                        App.log("web boot: retrying failed plugin bootstrap (" + webBootRetries + "/2)");
+                        // Clear HTTP resources only; keep cookies, settings and user data.
+                        view.clearCache(true);
+                        webBootGeneration++;
+                        view.reload();
+                    } else App.log("web boot: automatic recovery exhausted; user data preserved");
+                } else if ("\"loading\"".equals(result)) {
+                    monitorWebBoot(view, generation, poll + 1);
+                }
+            });
+        }, 1000);
     }
 
     private void injectBridge() {
