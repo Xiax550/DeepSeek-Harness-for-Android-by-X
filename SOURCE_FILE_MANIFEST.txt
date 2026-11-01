@@ -117,11 +117,9 @@ docs/BUILD.md
 docs/CI.md
 docs/FINDINGS.md
 docs/FIRST_APP_RELEASE.md
-docs/HANDOFF-history.md
 docs/RECOVERY.md
 docs/UPGRADE-DSH.md
 docs/author-attribution-test.mjs
-docs/character-skin-idle-validation.md
 docs/character-wake-and-size-validation.md
 docs/ciallo-character-and-navigation-validation.md
 docs/compliance-test.mjs
@@ -136,7 +134,6 @@ docs/native-memory.md
 docs/page-tools-media-test.mjs
 docs/payload-inventory-test.py
 docs/preinstalled-plugins.md
-docs/reference-only-character-validation.md
 docs/release-config-test.py
 docs/release-notes-test.py
 docs/repair-profile-test.mjs
@@ -154,7 +151,6 @@ docs/unit/dev/dsh/android/ScreenAwakePolicyTest.java
 docs/unit/dev/dsh/android/ScreenshotPathsTest.java
 docs/unit/dev/dsh/android/ThemeChoiceTest.java
 docs/unit/dev/dsh/android/UnpackPlanTest.java
-docs/upstream-issue-draft.md
 docs/verify-ondevice.sh
 docs/web-boot-recovery-test.mjs
 patches/android-mobile.css

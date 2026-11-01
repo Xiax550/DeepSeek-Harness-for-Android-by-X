@@ -3,7 +3,7 @@
 #
 # Needed because a payload update replaces the whole runtime: apt-installed tools and
 # everything under /tmp disappear, and this project's build toolchain lives in both
-# places (HANDOFF §4.1d). Run this after installing a new APK on a device you build on.
+# places (see docs/BUILD.md). Run this after installing a new APK on a device you build on.
 #
 # What it restores:
 #   apt     JDK 21 (javac/keytool), librsvg2-bin (icons), python3-pil (render_icon),
