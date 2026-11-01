@@ -5,15 +5,21 @@ required before publishing an APK, payload, hot package, or release asset.
 
 ## License boundaries
 
-- Original DHA source code and project-owned artwork are MIT licensed. The
+- Original DHA source code and explicitly MIT-authorized project artwork are MIT licensed. The
   upstream copyright notice remains in `LICENSE`.
 - Bundled third-party code keeps its own license. MIT does not replace an
   AGPL, GPL, Apache, LGPL, or asset-specific license.
-- Coopanion-derived floating-ball code is AGPL-3.0-or-later. Its separate
-  character-art notice remains in
-  `payload/opt/dsh/android/ball-web/coo/THIRD_PARTY_NOTICES.md`.
+- Retained or historical Coopanion-derived code remains AGPL-3.0-or-later.
+  Historical source retains its separate character-art restrictions. The current
+  renderer is `payload/opt/dsh/android/ball-web/reference/figure.js`; the new
+  reference artwork has separate terms in `ARTWORK_RIGHTS.md`.
 - The APK as a combined distribution is not described as "MIT only". It ships
   components under multiple licenses.
+- Supplying an image does not establish its redistribution license. New
+  reference-derived character assets and the launcher icon require the evidence
+  listed in `ARTWORK_RIGHTS.md`; they are not automatically covered by MIT.
+- A retained historical AGPL component notice must not be removed merely because
+  a new renderer is independent. Review each retained derivative separately.
 - The DHA and DeepSeek Harness names and marks are used descriptively. This
   project is unofficial and is not endorsed by DeepSeek.
 
@@ -74,19 +80,30 @@ the submodule.
 
 ### Bundled dependency notices: included
 
-The rebuilt DHA 1.2.50 APK contains 15 files under `assets/licenses/`,
-including the Shizuku, dshmarket, undici, js-yaml and argparse notices. Both
+The previous DHA 1.2.50 APK included the Shizuku, dshmarket, undici, js-yaml and
+argparse notices. Current packers also include artwork and dependency notices. Both
 `scripts/build_apk.sh` and `scripts/build_apk.ps1` now copy every `LICENSES/*.txt`
 file. Re-run checklist item 10 after every rebuild.
 
 ### Remaining release work
 
-The exact-payload SBOM required by item 6 has not been generated for the full
-runtime. This project therefore does not claim that every transitive npm and
-Ubuntu package has been independently audited. The Coopanion-derived code is
-AGPL-3.0-or-later; its source is in this repository and the separate art notice
-must remain with the character assets, but publishing only the APK is not
-sufficient.
+For 1.2.58, `scripts/payload_inventory.py` generates `RUNTIME_INVENTORY.json`
+from the exact base payload ZIP: 763 named/versioned npm package records and
+156 installed Debian package records. Eleven manifests lack a license field
+(local packages, scaffolding templates and the runtime wrapper are included in
+that count); these are reported as `NOASSERTION`, not assigned an invented
+license. The hot overlay and its project changes are supplied in the matched
+source archive and `hot.json`.
 
-The DHA icon was supplied by the maintainer as project artwork. Its source hash
-and provenance are recorded in `assets/README.md`.
+This inventory is not a full legal audit or a replacement for corresponding
+source. Package license/source obligations still apply, and this project does
+not claim that every transitive package has been independently audited.
+Historical or retained Coopanion derivatives remain AGPL-3.0-or-later;
+publishing only the APK is not sufficient.
+
+The maintainer confirmed ChatGPT-assisted creation and authorized inclusion of
+the current icon and character in this DHA distribution on 2026-11-02. The
+declaration and its scope are recorded in `ARTWORK_RIGHTS.md`; this is not an
+independent clearance of all third-party rights. See the release checklist in
+`docs/FIRST_APP_RELEASE.md`. These documents are not a blanket compliance
+certificate for a binary.

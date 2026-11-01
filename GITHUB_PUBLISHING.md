@@ -23,8 +23,18 @@ PRoot 条目逐字节一致；源码提交、PRoot 子模块、talloc 与构建�
 
 1. 发布源码仓库和许可证文件；
 2. 附上 PRoot 对应源码归档，并保留 GPL 版权与许可证文本；
-3. 不把签名密钥、API Key、设备日志或本地配置上传到 GitHub；
+3. 不把签名密钥、API Key、设备日志、本地配置、个人参考照片或私人创作聊天截图上传到 GitHub；
 4. 在 Release 页面明确说明当前构建限制。
+
+当前图标与玩偶的创作来源和发行许可范围见 `ARTWORK_RIGHTS.md`。
+发布前从实际 payload 生成依赖清单：
+
+```sh
+python3 scripts/payload_inventory.py build/payload-assets/payload.zip out/RUNTIME_INVENTORY.json
+```
+
+保留现有 Git 历史、签名和递增版本号。“首个正式应用发布”不等于删除上游版权
+或重新初始化仓库。受保护的主分支应通过 PR 和 `validate` 检查更新。
 
 应用 Release 使用版本化资产名：
 

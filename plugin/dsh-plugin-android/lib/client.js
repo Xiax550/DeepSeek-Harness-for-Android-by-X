@@ -92,7 +92,7 @@ window.__ModuleLoader__.load({
 			hotApplied: "已导入外部包 %s",
 			hotBakedIn: "内置热包",
 			hotImported: "已导入外部热包",
-			hotHint: "热更新只在你要求时发生：点「检查更新」用线上的包，或用「选择本地热包」挑一个手机里的 dsh-hot.zip。应用不再自动读取 Download 目录。",
+			hotHint: "打开应用及每天凌晨自动检查 GitHub 更新；后台检查可能因省电或网络延后。仅提示新版本，下载和安装需手动确认。也可选择本地热更新包。",
 			updCheck: "检查更新",
 			updChecking: "检查中…",
 			updLatest: "已是最新（%s）",
@@ -214,7 +214,7 @@ window.__ModuleLoader__.load({
 			phoneBallLook: "外观",
 			phoneBallLookHint: "这里改的是球的样子和大小；球体本身的材质、阴影与原生动效在外壳里，热包换不掉。",
 			phoneBallSize: "大小",
-			phoneBallSizeHint: "40–120 dp；松手即生效（球会重画一次）。",
+			phoneBallSizeHint: "54–120 dp；默认 54 dp，松手即生效。",
 			phoneBallSizeSmall: "小",
 			phoneBallSizeMedium: "标准",
 			phoneBallSizeLarge: "大",
@@ -434,7 +434,7 @@ window.__ModuleLoader__.load({
 			phoneBallLook: "Appearance",
 			phoneBallLookHint: "This changes the mark and the size only; the ball's material, shadow and native motion live in the shell, where a hot package cannot reach.",
 			phoneBallSize: "Size",
-			phoneBallSizeHint: "40–120 dp, applied on release (the ball is redrawn once).",
+			phoneBallSizeHint: "54–120 dp, default 54 dp, applied on release.",
 			phoneBallSizeSmall: "Small",
 			phoneBallSizeMedium: "Standard",
 			phoneBallSizeLarge: "Large",
@@ -599,6 +599,32 @@ html:has(body[data-ds-dark-theme]) [data-trigger-menu] button[role=option] svg{
 .dsa-warn{font-size:12px;line-height:18px;color:var(--dsw-alias-state-warn-primary);overflow-wrap:anywhere}
 .dsa-sep{border:0;border-top:0.5px solid var(--dsw-alias-border-l2);margin:0}
 .dsa-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dsa-button{border:1px solid var(--dsw-alias-border-l2,#999);border-radius:6px;background:var(--dsw-alias-settings-card-fill,transparent);color:inherit;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;min-height:34px}
+.dsa-button:disabled{opacity:.5;cursor:default}
+.dsa-memory .dsa-input::placeholder{color:var(--dsw-alias-label-secondary,#666);opacity:1}
+.dsa-memory textarea.dsa-input{height:auto;min-height:120px;padding:8px 12px}
+.dsa-memory{gap:14px!important;letter-spacing:0}
+.dsa-memoryHead,.dsa-memoryTools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;min-width:0}
+.dsa-memoryTabs{display:flex;border-bottom:1px solid var(--dsw-alias-border-l2,#ddd);gap:18px}
+.dsa-memoryTab{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary,#666);font:inherit;font-size:14px;min-height:42px;padding:6px 0;cursor:pointer}
+.dsa-memoryTab[aria-selected=true]{border-color:currentColor;color:var(--dsw-alias-label-primary,#222);font-weight:600}
+.dsa-memoryFilters{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,.55fr);gap:8px}
+.dsa-memorySearch{display:flex;gap:8px;min-width:0}
+.dsa-memorySearch .dsa-input{min-width:0;flex:1}
+.dsa-memoryEntry{padding:14px 0;border-bottom:1px solid var(--dsw-alias-border-l2,#ddd);min-width:0}
+.dsa-memoryEntry summary{cursor:pointer;font-size:14px;line-height:1.65;overflow-wrap:anywhere;white-space:pre-wrap}
+.dsa-memoryEntry details[open] summary{font-weight:500}
+.dsa-memoryBody{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7;margin:10px 0}
+.dsa-memoryEntry .dsa-memoryTools{margin-top:8px;align-items:flex-start}
+.dsa-memory .dsa-hint{color:var(--dsw-alias-label-secondary,#666)}
+.dsa-memoryStatus{border-left:3px solid var(--dsw-alias-state-business-primary,#337c66);padding:4px 0 4px 12px;display:grid;gap:6px;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.dsa-memorySchedule{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:end}
+.dsa-memorySchedule label{display:grid;gap:6px;font-size:13px;min-width:0}
+.dsa-memoryEditor{display:grid;gap:10px;border-block:1px solid var(--dsw-alias-border-l2,#ddd);padding:14px 0}
+.dsa-memoryEditor h3{font-size:15px;margin:0}
+.dsa-memoryEditor label{display:grid;gap:6px;min-width:0}
+.dsa-memoryTools>.dsa-hint{overflow-wrap:anywhere;min-width:0}
+@media(max-width:360px){.dsa-memorySchedule,.dsa-memoryFilters{grid-template-columns:minmax(0,1fr)}}
 .dsa-grantAll{width:100%;justify-content:center}
 .dsa-foot{display:flex;align-items:center;gap:8px;padding-top:2px}
 .dsa-field{display:flex;flex-direction:column;gap:6px;padding:12px 0}
@@ -831,16 +857,15 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 			const t = props.t;
 			// The snapshot carries the stored size and image; whether the ball is up is a
 			// runtime fact, so it comes from the state route.
-			const current = props.ball !== null && props.ball !== undefined && props.ball.size
-				? props.ball.size : 58;            // BallService.DEFAULT_SIZE_DP
+			const current = Math.max(54, Math.min(120, Number(props.ball?.size) || 54));
 			const [state, setState] = react.useState(null);
 			const [size, setSize] = react.useState(null);
 			const [message, setMessage] = react.useState("");
 			const [needsPermission, setNeedsPermission] = react.useState(false);
 			const running = state !== null && state.running === true;
-			// The user's own size may be none of the presets (40dp, say). Keep the presets
+			// The user's own size may be none of the presets. Keep the presets
 			// and fold the current value in, so exactly one choice is always highlighted.
-			const sizes = Array.from(new Set([48, 58, 68, 78, current])).sort((a, b) => a - b);
+			const sizes = Array.from(new Set([54, 58, 68, 78, current])).sort((a, b) => a - b);
 			const chosen = size === null ? current : size;
 			const refreshState = async () => {
 				try {
@@ -1308,6 +1333,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 			const [info, setInfo] = react.useState(null);
 			const [message, setMessage] = react.useState("");
 			const current = applied === "" ? packaged : applied;
+			const [lastCheck, setLastCheck] = react.useState(0);
 
 			// Through the bridge: the app fetches the manifest server-side, so
 			// there is no cross-origin request and a failure comes back readable.
@@ -1318,13 +1344,23 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 					const data = await call("/update/check", {});
 					if (data.ok !== true) throw new Error(data.error ?? t("failed"));
 					setInfo(data);
+					setLastCheck(Date.now());
 					setState("done");
 				} catch (error) {
 					setState("failed");
 					setMessage(String(error.message ?? error));
 				}
 			};
-			react.useEffect(() => { check(); }, []);
+			react.useEffect(() => {
+				let disposed = false;
+				call("/update/status", {}).then(data => {
+					if (disposed) return;
+					setLastCheck(data.lastAttempt || 0);
+					if (data.result?.ok) { setInfo(data.result); setState("done"); }
+					else if (data.result?.error) { setMessage(data.result.error); setState("failed"); }
+				}).catch(() => {});
+				return () => { disposed = true; };
+			}, []);
 
 			// A hot package belongs to one exact line — "<app>-t<terminal>-sp<n>".
 			// Offering one from a different line would put a newer plugin on an
@@ -1332,15 +1368,16 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 			// update below is the right answer for that case.
 			const line = (props.app ?? "") + "-t" + (props.terminal ?? "") + "-";
 			const sameLine = (value) => value === "" || String(value).indexOf(line) === 0;
-			const hotNew = info !== null && info.hot !== undefined && info.hot.version !== ""
+			const hotSeq = value => /^.*-sp\d+$/.test(String(value)) ? Number(String(value).split("-sp").pop()) : 0;
+			const hotNew = info !== null && info.hot != null && info.hot.version !== ""
 				&& sameLine(info.hot.version)
-				&& info.hot.version !== current && info.hot.version !== packaged;
-			const appNew = info !== null && info.app !== undefined
+				&& hotSeq(info.hot.version) > Math.max(hotSeq(current), hotSeq(packaged));
+			const appNew = info !== null && info.app != null
 				&& (info.app.versionCode ?? 0) > versionCode;
 			// The sandbox runtime has its own number and only ever ships inside an
 			// APK, so a newer terminal reads as "install the new shell", not as
 			// something to download here.
-			const terminalNew = info !== null && info.terminal !== undefined
+			const terminalNew = info !== null && info.terminal != null
 				&& Number(info.terminal.version ?? 0) > Number(props.terminal ?? 0);
 
 			return h(Group, { title: t("hotTitle") },
@@ -1363,6 +1400,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 								onClick: () => call("/hot/pick", {})
 							}, t("hotPick")))),
 					props.hotMessage ? h("p", { className: "dsa-hint" }, props.hotMessage) : null,
+					lastCheck ? h("p", { className: "dsa-hint" }, "最近检查：" + new Date(lastCheck).toLocaleString()) : null,
 					state === "done" && !hotNew && !appNew
 						? h("p", { className: "dsa-hint" }, t("updLatest").replace("%s", app))
 						: null,
@@ -1787,7 +1825,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 							image: ball.image || "",
 							distroPath: active !== null && typeof active.path === "string" ? active.path : ""
 						}));
-						setBallSize(String(ball.size === undefined ? 58 : ball.size));
+						setBallSize(String(Math.max(54, Math.min(120, Number(ball.size) || 54))));
 					})
 					.catch(() => { if (!cancelled) setState({}); });
 				return () => { cancelled = true; };
@@ -1801,7 +1839,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 				if (sizeTimer.current !== null) clearTimeout(sizeTimer.current);
 			}, []);
 			const applySize = (value, immediate) => {
-				const size = Math.max(40, Math.min(120, parseInt(String(value), 10) || 58));
+				const size = Math.max(54, Math.min(120, parseInt(String(value), 10) || 54));
 				setBallSize(String(size));
 				if (sizeTimer.current !== null) {
 					clearTimeout(sizeTimer.current);
@@ -1843,7 +1881,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 			// drops the presets (payload/opt/dsh/android/ball/). The ball needs a host
 			// path, so this is built from /snapshot's distros[].path.
 			const presetPath = (preset) => (distroPath === "" ? "" : distroPath + "/opt/dsh/android/ball/" + preset.file);
-			const ballDp = Math.max(40, Math.min(120, parseInt(String(ballSize), 10) || 58));
+			const ballDp = Math.max(54, Math.min(120, parseInt(String(ballSize), 10) || 54));
 			const selected = BALL_PRESETS.find((preset) => preset.builtin
 				? image === ""
 				: image !== "" && image === presetPath(preset)) ?? null;
@@ -1893,7 +1931,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 									h("input", {
 										type: "range",
 										className: "dsa-range",
-										min: 40, max: 120, step: 1,
+									min: 54, max: 120, step: 1,
 										value: ballDp,
 										"aria-label": t("phoneBallSize"),
 										onChange: (event) => applySize(event.target.value, false),
@@ -1903,7 +1941,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 										onBlur: (event) => applySize(event.target.value, true)
 									}),
 									h("div", { className: "dsa-ballChips" },
-										sizeChip(t("phoneBallSizeSmall"), 46),
+										sizeChip(t("phoneBallSizeSmall"), 54),
 										sizeChip(t("phoneBallSizeMedium"), 58),
 										sizeChip(t("phoneBallSizeLarge"), 76),
 										sizeChip(t("phoneBallSizeHuge"), 96)),
@@ -2202,6 +2240,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 
 			let timer = 0;
 			let rerun = false;
+			let ballResting = false;
 			const schedule = (delay) => {
 				if (timer) globalThis.clearTimeout(timer);
 				timer = globalThis.setTimeout(() => {
@@ -2224,6 +2263,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 				busy = true;
 				try {
 					const answer = await call("/ball/inbox");
+					ballResting = answer?.resting === true;
 					const items = (answer && answer.items) || [];
 					if (items.length === 0) return;
 					if (sessionId === "") sessionId = await open();
@@ -2273,6 +2313,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 				} finally {
 					busy = false;
 					schedule(rerun ? 0
+						: ballResting ? 30000
 						: (typeof document !== "undefined" && document.hidden ? 10000 : 3000));
 					rerun = false;
 				}
@@ -3101,6 +3142,174 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 					clearInterval(nativeTimer);
 				}
 			};
+		}
+
+		async function memoryCall(body) {
+			const response = await fetch('/dha-memory', {
+				method: 'POST', cache: 'no-store',
+				headers: { 'Content-Type': 'application/json', 'X-Dsh-Token': bridge()?.token || '' },
+				body: JSON.stringify({ ...body, clientTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+			});
+			const data = await response.json();
+			if (!response.ok || !data.ok) throw new Error(data.error || '记忆操作失败');
+			return data;
+		}
+
+		function MemorySection() {
+			const [data, setData] = react.useState(null);
+			const [error, setError] = react.useState('');
+			const [notice, setNotice] = react.useState('');
+			const [busy, setBusy] = react.useState(false);
+			const [query, setQuery] = react.useState('');
+			const [workspace, setWorkspace] = react.useState('');
+			const [offset, setOffset] = react.useState(0);
+			const [editing, setEditing] = react.useState(null);
+			const [draft, setDraft] = react.useState('');
+			const [level, setLevel] = react.useState('fact');
+			const [project, setProject] = react.useState('全局');
+			const [scopeMode, setScopeMode] = react.useState('global');
+			const [scopePath, setScopePath] = react.useState('');
+			const [tab, setTab] = react.useState('manage');
+			const [status, setStatus] = react.useState('active');
+			const [appliedQuery, setAppliedQuery] = react.useState('');
+			const [scheduleTime, setScheduleTime] = react.useState(null);
+			const [scheduleEndTime, setScheduleEndTime] = react.useState(null);
+			const [forgetTime, setForgetTime] = react.useState(null);
+			const [archiveDays, setArchiveDays] = react.useState('3');
+			const [deleteDays, setDeleteDays] = react.useState('2');
+			const sequence = react.useRef(0);
+			const labels = { soul: '自身', user: '用户偏好', project: '项目信息', fact: '事实', lesson: '经验', topic: '话题', rules: '规则' };
+			const reload = async (action = {}) => {
+				const version = ++sequence.current;
+				setBusy(true); setError('');
+				try { const fresh = await memoryCall({ action: 'list', workspace, query: appliedQuery, status, offset, ...action }); if (version === sequence.current) setData(fresh); return true; }
+				catch (e) { if (version === sequence.current) setError(e.message); return false; }
+				finally { if (version === sequence.current) setBusy(false); }
+			};
+			react.useEffect(() => {
+				let cancelled = false;
+				const version = ++sequence.current;
+				setBusy(true);
+				memoryCall({ action: 'list', workspace, query: appliedQuery, status, offset }).then(fresh => { if (!cancelled && version === sequence.current) { setData(fresh); setError(''); } }).catch(e => { if (!cancelled && version === sequence.current) setError(e.message); }).finally(() => { if (!cancelled && version === sequence.current) setBusy(false); });
+				return () => { cancelled = true; };
+			}, [workspace, offset, status, appliedQuery, tab]);
+			react.useEffect(() => {
+				if (data && scheduleTime === null) { setScheduleTime(data.reviewTime); setScheduleEndTime(data.reviewEndTime); }
+				if (data && forgetTime === null) { setForgetTime(data.forgetTime); setArchiveDays(String(data.forgetArchiveDays)); setDeleteDays(String(data.forgetDeleteDays)); }
+			}, [data]);
+			react.useEffect(() => {
+				if (!data || busy || !['review', 'forget'].includes(tab) && !data.review?.running) return;
+				let cancelled = false;
+				const version = sequence.current;
+				const timer = setTimeout(() => memoryCall({ action: 'list', workspace, query: appliedQuery, status, offset }).then(fresh => { if (!cancelled && version === sequence.current) setData(fresh); }).catch(e => { if (!cancelled) setError(e.message); }), data.review?.running ? 2500 : 15000);
+				return () => { cancelled = true; clearTimeout(timer); };
+			}, [data, busy, workspace, appliedQuery, status, offset, tab]);
+			const button = (title, onClick, disabled = false) => h('button', { type: 'button', className: 'dsa-button', disabled: busy || disabled, onClick }, title);
+			const open = row => {
+				const scope = row?.workspace || workspace || '*';
+				setEditing(row || {}); setDraft(row?.content || ''); setLevel(row?.level || 'fact'); setProject(row?.project || '全局');
+				setScopeMode(scope === '*' ? 'global' : 'workspace'); setScopePath(scope === '*' ? '' : scope); setNotice('');
+			};
+			const configure = config => reload({ action: 'configure', config });
+			const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+			return h('div', { className: 'dsa-root dsa-memory' },
+				h('div', { className: 'dsa-memoryHead' }, h('h2', { className: 'dsa-heading' }, '记忆'), data ? h('span', { className: 'dsa-hint' }, `${data.count} 条有效 · ${data.totalCount} 条留存`) : null),
+				error ? h('p', { role: 'alert', className: 'dsa-hint' }, error) : null,
+				notice ? h('p', { role: 'status', className: 'dsa-hint' }, notice) : null,
+				!data ? h('p', null, '正在读取记忆…') : h(react.Fragment, null,
+					h(ToggleRow, { title: '启用记忆', checked: data.enabled, disabled: busy, onChange: enabled => configure({ enabled }) }),
+						h('div', { className: 'dsa-memoryTabs', role: 'tablist', 'aria-label': '记忆页面' }, ...[['manage', '记忆'], ['review', '回忆'], ['forget', '遗忘']].map(([value, title]) => h('button', { type: 'button', role: 'tab', key: value, className: 'dsa-memoryTab', 'aria-selected': tab === value, onClick: () => setTab(value) }, title))),
+						tab === 'forget' ? h('section', { role: 'tabpanel', 'aria-label': '遗忘' },
+							h(ToggleRow, { title: '定时遗忘', checked: data.forgetEnabled, disabled: busy || !data.enabled || !data.forgetting?.available, onChange: forgetEnabled => {
+								if (!forgetEnabled || globalThis.confirm(`启用后将在全部工作区清理${data.forgetScope === 'all' ? '符合条件的闲置会话' : '自动化产生的会话（含刷 B 站任务，人工追加聊天后受保护）'}：闲置 ${data.forgetArchiveDays} 天先归档，归档后再保留 ${data.forgetDeleteDays} 天将永久删除，无法恢复。正在执行、置顶、带附件和未完成回忆的会话默认受保护。是否启用？`)) configure({ forgetEnabled, reviewCleanup: false });
+							} }),
+							h('label', null, '清理范围', h('select', { className: 'dsa-input', value: data.forgetScope || 'automation', disabled: busy, onChange: e => {
+								const forgetScope = e.target.value;
+								if (forgetScope !== 'all' || globalThis.confirm('全部闲置会话包含普通聊天，不限于自动化任务。符合保留时间和保护规则后可能永久删除，确认扩大清理范围？')) configure({ forgetScope });
+							} }, h('option', { value: 'automation' }, '仅自动化会话（推荐）'), h('option', { value: 'all' }, '全部闲置会话'))),
+							h('form', { className: 'dsa-memorySchedule', onSubmit: async e => {
+								e.preventDefault();
+								if (data.forgetEnabled && !globalThis.confirm('修改遗忘保留时间会影响已有待清理会话。确认保存？')) return;
+								if (await configure({ forgetTime, forgetArchiveDays: Number(archiveDays), forgetDeleteDays: Number(deleteDays), reviewTimeZone: zone })) setNotice('遗忘计划已保存');
+							} },
+								h('label', null, '每天检查时间', h('input', { className: 'dsa-input', type: 'time', required: true, disabled: busy, value: forgetTime || '', onChange: e => setForgetTime(e.target.value) })),
+								h('label', null, '闲置后归档（天）', h('input', { className: 'dsa-input', type: 'number', min: 1, max: 365, required: true, disabled: busy, value: archiveDays, onChange: e => setArchiveDays(e.target.value) })),
+								h('label', null, '归档后删除（天）', h('input', { className: 'dsa-input', type: 'number', min: 1, max: 365, required: true, disabled: busy, value: deleteDays, onChange: e => setDeleteDays(e.target.value) })),
+								h('button', { type: 'submit', className: 'dsa-button', disabled: busy }, '保存遗忘计划')),
+							h(ToggleRow, { title: '保护未完成回忆的会话', checked: data.forgetProtectUnreviewed, disabled: busy, onChange: forgetProtectUnreviewed => {
+								if (forgetProtectUnreviewed || globalThis.confirm('关闭保护后，未保存长期记忆的旧会话也可能被永久删除。确认关闭？')) configure({ forgetProtectUnreviewed });
+							} }),
+							h('div', { className: 'dsa-memoryStatus', role: 'status' }, h('strong', null, data.forgetting?.running ? '遗忘整理中' : data.forgetting?.message || '尚未执行遗忘'),
+								data.forgetting?.checkedAt ? h('span', null, new Date(data.forgetting.checkedAt).toLocaleString()) : null),
+							button('立即检查', () => reload({ action: 'forget' }), !data.enabled || !data.forgetEnabled || data.forgetting?.running || !data.forgetting?.available)) : tab === 'review' ? h('section', { role: 'tabpanel', 'aria-label': '回忆' },
+						h(ToggleRow, { title: '定时回忆', checked: data.reviewEnabled, disabled: busy || !data.enabled || !data.review?.available, onChange: reviewEnabled => {
+							if (!reviewEnabled || globalThis.confirm('回忆会将全部工作区尚未整理的对话发送给默认模型，以补记和精简记忆，可能产生模型费用。是否启用定时回忆？')) configure({ reviewEnabled, reviewTimeZone: zone });
+						} }),
+						h('form', { className: 'dsa-memorySchedule', onSubmit: async e => {
+							e.preventDefault();
+							if (await configure({ reviewTime: scheduleTime, reviewEndTime: scheduleEndTime, reviewTimeZone: zone })) setNotice('回忆时间段已保存');
+						} },
+							h('label', null, '开始时间', h('input', { className: 'dsa-input', type: 'time', required: true, value: scheduleTime || '', disabled: busy, onChange: e => setScheduleTime(e.target.value) })),
+							h('label', null, scheduleEndTime && scheduleTime && scheduleEndTime < scheduleTime ? '结束时间（次日）' : '结束时间', h('input', { className: 'dsa-input', type: 'time', required: true, value: scheduleEndTime || '', disabled: busy, onChange: e => setScheduleEndTime(e.target.value) })),
+							h('span', { className: 'dsa-hint' }, data.reviewTimeZone), h('button', { type: 'submit', className: 'dsa-button', disabled: busy }, '保存时间段')),
+						h(ToggleRow, { title: '精简重复记忆', checked: data.reviewCompact, disabled: busy || !data.enabled, onChange: reviewCompact => configure({ reviewCompact }) }),
+						h('div', { className: 'dsa-memoryStatus', role: 'status' },
+							h('strong', null, data.review?.running ? '回忆进行中' : data.review?.message || '尚未回忆'),
+							data.review?.running && data.review?.message ? h('span', null, data.review.message) : null,
+							data.review?.startedAt ? h('span', null, `补记 ${data.review.added || 0} 条 · 精简 ${data.review.compacted || 0} 条 · 归档 ${data.review.cleaned || 0} 个会话`) : null,
+							data.review?.finishedAt ? h('span', null, `上次结束 ${new Date(data.review.finishedAt).toLocaleString()}`) : null,
+							!data.review?.available ? h('span', null, '回忆服务准备中') : null),
+						h('p', { className: 'dsa-hint', style: { marginTop: 10 } }, '默认模型 · 全部工作区 · 仅在时间段内自动回忆'),
+						h('div', { className: 'dsa-actions', style: { marginTop: 12 } }, button(data.review?.running ? '停止回忆' : data.review?.pending ? '继续回忆' : '立即回忆', () => {
+							if (data.review?.running) reload({ action: 'review-stop' });
+							else if (globalThis.confirm('将使用默认模型整理全部工作区尚未记忆的对话，可能产生模型费用。现在开始？')) reload({ action: 'review' });
+						}, !data.enabled || !data.review?.available))) : h('section', { role: 'tabpanel', 'aria-label': '记忆管理' },
+						h(ToggleRow, { title: '对话自动引用记忆', checked: data.autoRecall, disabled: busy || !data.enabled, onChange: autoRecall => configure({ autoRecall }) }),
+						h(ToggleRow, { title: '会话结束后保存记忆', checked: data.autoSave, disabled: busy || !data.enabled, onChange: autoSave => {
+							if (!autoSave || globalThis.confirm('每轮结束后使用默认模型检查遗漏记忆，每次最多额外调用 1 次，可能产生费用。是否启用？')) configure({ autoSave });
+						} }),
+						h('div', { className: 'dsa-memoryFilters' }, h('select', { className: 'dsa-input', 'aria-label': '筛选记忆工作区', value: workspace, disabled: busy, onChange: e => { setWorkspace(e.target.value); setOffset(0); } },
+						h('option', { value: '' }, '全部工作区'),
+						...data.workspaces.map(row => h('option', { key: row.workspace, value: row.workspace }, `${row.workspace === '*' ? '全局' : row.workspace} (${row.count})`))),
+						h('select', { className: 'dsa-input', 'aria-label': '记忆状态', value: status, disabled: busy, onChange: e => { setStatus(e.target.value); setOffset(0); } }, ...[['active', '有效记忆'], ['archived', '已归档'], ['all', '全部记忆']].map(([value, title]) => h('option', { key: value, value }, title)))),
+					h('form', { className: 'dsa-memorySearch', style: { marginTop: 8 }, onSubmit: e => { e.preventDefault(); setOffset(0); setAppliedQuery(query); reload({ query, offset: 0 }); } },
+						h(TextInput, { 'aria-label': '搜索记忆', placeholder: '搜索记忆', value: query, onChange: e => setQuery(e.target.value), style: { minWidth: 0, flex: 1 } }),
+						h('button', { type: 'submit', className: 'dsa-button', disabled: busy }, '搜索')),
+					h('div', { className: 'dsa-actions', style: { marginTop: 10 } },
+						button('新增记忆', () => open(null)),
+						button('导出记忆', async () => {
+							setBusy(true); setError('');
+							try {
+								const result = await memoryCall({ action: 'export' });
+								const exported = await call('/export', { path: result.path }, 120000);
+								if (!exported.ok) throw new Error(exported.error || '导出失败');
+								setNotice(`已导出 ${result.count} 条记忆到 Download/${exported.name}`);
+							} catch (e) { setError(e.message); } finally { setBusy(false); }
+						})),
+					editing === null ? null : h('form', { onSubmit: async e => {
+						e.preventDefault();
+						const targetScope = scopeMode === 'global' ? '*' : scopePath.trim();
+						if (!targetScope) { setError('请填写工作区绝对路径'); return; }
+						if (await reload({ action: 'save', id: editing.id, memory: { content: draft, level, project, workspace: targetScope }, offset: 0 })) {
+							setEditing(null); setOffset(0); setNotice('记忆已保存');
+							if (workspace && workspace !== targetScope) setWorkspace(targetScope);
+						}
+					}, className: 'dsa-memoryEditor' },
+						h('h3', null, editing.id ? '编辑记忆' : '新增记忆'),
+						h('select', { className: 'dsa-input', 'aria-label': '记忆分类', value: level, onChange: e => setLevel(e.target.value) }, ...Object.entries(labels).map(([value, title]) => h('option', { key: value, value }, title))),
+						h(TextInput, { 'aria-label': '所属项目', value: project, onChange: e => setProject(e.target.value) }),
+						h('label', null, '作用域', h('select', { className: 'dsa-input', 'aria-label': '记忆作用域', value: scopeMode, disabled: busy, onChange: e => setScopeMode(e.target.value) },
+							h('option', { value: 'global' }, '全局'), h('option', { value: 'workspace' }, '指定工作区'))),
+						scopeMode === 'workspace' ? h('label', null, '工作区路径', h(TextInput, { 'aria-label': '记忆工作区路径', list: 'dha-memory-scope-paths', value: scopePath, disabled: busy, required: true, onChange: e => setScopePath(e.target.value) }),
+							h('datalist', { id: 'dha-memory-scope-paths' }, ...data.workspaces.filter(row => row.workspace !== '*').map(row => h('option', { key: row.workspace, value: row.workspace })))) : null,
+						h('textarea', { className: 'dsa-input', 'aria-label': '记忆内容', rows: 5, maxLength: 8000, value: draft, onChange: e => setDraft(e.target.value), style: { width: '100%', boxSizing: 'border-box', resize: 'vertical' } }),
+						h('div', { style: { display: 'flex', gap: 8 } }, h('button', { type: 'submit', className: 'dsa-button', disabled: busy || !draft.trim() }, '保存'), button('取消', () => setEditing(null)))),
+					...data.memories.map(row => h('article', { key: row.id, className: 'dsa-memoryEntry' },
+						h('details', null, h('summary', null, row.content.length > 90 ? row.content.slice(0, 90) + '…' : row.content), h('p', { className: 'dsa-memoryBody' }, row.content)),
+						h('div', { className: 'dsa-memoryTools' }, h('span', { className: 'dsa-hint' }, `${labels[row.level] || row.level} · ${row.project} · ${row.workspace === '*' ? '全局' : row.workspace} · ${new Date(row.updated_at).toLocaleDateString()}`),
+						h('div', { className: 'dsa-actions' }, button('编辑', () => open(row)), row.status !== 'active' ? button('恢复', () => reload({ action: 'save', id: row.id, memory: { status: 'active' } })) : null, button('删除', () => { if (globalThis.confirm('确定永久删除这条记忆？')) reload({ action: 'delete', id: row.id }); }))))),
+					data.memories.length ? null : h('p', { className: 'dsa-hint' }, '没有匹配的记忆'),
+					h('div', { className: 'dsa-memoryTools', style: { marginTop: 12 } }, button('上一页', () => setOffset(Math.max(0, offset - 50)), offset === 0), h('span', { className: 'dsa-hint' }, `第 ${Math.floor(offset / 50) + 1} 页`), button('下一页', () => setOffset(offset + 50), data.memories.length < 50)))));
 		}
 
 		function AndroidSection(props) {
@@ -6650,6 +6859,7 @@ html[data-ds-dark-theme] .dsa-root{--dsa-ball-fill:transparent}
 			}, "dsh-plugin-android: window theme");
 			ctx.effect(() => installThemePersistence(ctx),
 				"dsh-plugin-android: durable theme mirror");
+			ctx.slots.inject('settings.section', () => ctx.slots.register({ name: 'settings.section', id: 'android-memory', order: 24, label: () => '记忆', locale: NS }, MemorySection));
 			ctx.effect(() => {
 				const observer = installSessionDeleteMenu();
 				return () => observer.disconnect();

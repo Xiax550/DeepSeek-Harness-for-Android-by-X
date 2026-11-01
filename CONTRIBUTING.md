@@ -32,13 +32,16 @@ On Windows, a slim build is the quickest way to validate Java and resource
 changes:
 
 ```powershell
-& (Get-Content scripts\build_apk.ps1 -Raw) -Slim
+& .\scripts\build_apk.ps1 -Slim
 ```
 
 ## Licensing of contributions
 
-By submitting a contribution, you agree that it may be distributed under the
+By submitting original code, you agree that it may be distributed under the
 repository's MIT license, and you confirm that you have the right to submit it.
+Artwork requires explicit distribution terms and provenance in
+`ARTWORK_RIGHTS.md`; do not infer an artwork license from the code license.
+Never commit personal reference photographs or private creation conversations.
 Do not copy code, models, artwork, fonts, or other assets from an incompatible
 license. New third-party material must be recorded in `THIRD_PARTY.md` with its
 source, version or revision, license, and any required attribution.
@@ -53,4 +56,3 @@ Files that carry their own license remain under that license. See
 - Add a short comment only when a non-obvious constraint explains the code.
 - Do not silently rewrite user profile settings. Migrations must be additive,
   idempotent, and must preserve explicit user choices.
-

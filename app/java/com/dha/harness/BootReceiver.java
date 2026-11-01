@@ -23,6 +23,7 @@ public final class BootReceiver extends BroadcastReceiver {
             return;
         }
         Context app = context.getApplicationContext();
+        Updates.schedule(false);
         if (!Payload.isReady()) {
             App.log("boot receiver: payload is not ready yet");
             return;

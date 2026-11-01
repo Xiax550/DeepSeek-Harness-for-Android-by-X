@@ -70,7 +70,7 @@ const ballSection = sections.find((section) => section.name === 'app:ball-surfac
 const androidSection = sections.find((section) => section.name === 'app:android-surface');
 const assemble = listeners.get('system-prompt/assemble');
 
-check('both prompt sections are registered', sections.map((s) => s.name).sort(), ['app:android-surface', 'app:ball-surface']);
+check('surface and memory prompt sections are registered', sections.map((s) => s.name).sort(), ['app:android-surface', 'app:ball-surface', 'app:dha-memory']);
 check('android surface keeps its slot', androidSection.order, 10150);
 check('ball surface sorts after android surface and the summarizer hint', ballSection.order, 10165);
 

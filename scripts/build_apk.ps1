@@ -228,7 +228,7 @@ Invoke-Native -Exe $Python -NativeArgs @(
 ) -What 'make_update_manifest.py'
 $assets += "assets/hot.zip:$(Join-Path $Build 'hot-assets\hot.zip')"
 $assets += "assets/vosk-model-small-cn.zip:$VoiceModel"
-foreach ($legalName in @('LICENSE', 'AUTHORS.md', 'NOTICE.md', 'THIRD_PARTY.md', 'OPEN_SOURCE_COMPLIANCE.md')) {
+foreach ($legalName in @('LICENSE', 'AUTHORS.md', 'NOTICE.md', 'THIRD_PARTY.md', 'DEPENDENCIES.md', 'ARTWORK_RIGHTS.md', 'OPEN_SOURCE_COMPLIANCE.md')) {
     $legalPath = Join-Path $Root $legalName
     Assert-File $legalPath $legalName
     $assets += "assets/licenses/$legalName`:$legalPath"
@@ -236,6 +236,9 @@ foreach ($legalName in @('LICENSE', 'AUTHORS.md', 'NOTICE.md', 'THIRD_PARTY.md',
 foreach ($license in Get-ChildItem (Join-Path $Root 'LICENSES') -File -Filter *.txt) {
     $assets += "assets/licenses/$($license.Name)`:$($license.FullName)"
 }
+$referenceNotice = Join-Path $Root 'payload/opt/dsh/android/ball-web/reference/NOTICE.md'
+Assert-File $referenceNotice 'reference character notice'
+$assets += "assets/licenses/REFERENCE_CHARACTER_NOTICE.md`:$referenceNotice"
 
 Write-Host "== 2/8 compile resources ==" -ForegroundColor Cyan
 $resFlat = Join-Path $Build 'res-flat\res.zip'

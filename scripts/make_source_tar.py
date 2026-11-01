@@ -18,12 +18,13 @@ Usage: make_source_tar.py [--root DIR] [--out FILE]
 from __future__ import annotations
 
 import io
+import subprocess
 import sys
 import tarfile
 import time
 from pathlib import Path
 
-SKIP_DIRS = {"lab", "build", "out", "keystore", ".git", "node_modules", "__pycache__"}
+SKIP_DIRS = {"lab", "build", "out", "keystore", ".git", "_ref", "__pycache__"}
 SKIP_SUFFIX = (".apk", ".aab", ".zip", ".log", ".p12", ".jks", ".keystore")
 
 NOTE = """DHA — source snapshot
@@ -66,12 +67,17 @@ def main() -> None:
         info.size, info.mtime, info.mode = len(note), int(time.time()), 0o644
         archive.addfile(info, io.BytesIO(note))
 
-        for path in sorted(root.rglob("*")):
+        try:
+            tracked = subprocess.check_output(['git', '-C', str(root), 'ls-files', '-z'])
+            paths = [root / name for name in tracked.decode('utf-8').split('\0') if name]
+        except (OSError, subprocess.CalledProcessError):
+            raise SystemExit('Source publication requires a Git checkout with reviewed tracked files; refuse a broad local-directory archive.')
+        for path in sorted(paths):
             relative = path.relative_to(root)
             if any(part in SKIP_DIRS for part in relative.parts):
                 skipped += 1
                 continue
-            if relative.name.endswith(SKIP_SUFFIX):
+            if relative.name.endswith(SKIP_SUFFIX) and relative.as_posix() != 'app/assets/vosk-model-small-cn.zip':
                 skipped += 1
                 continue
             if path.is_symlink():

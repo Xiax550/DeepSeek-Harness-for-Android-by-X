@@ -25,6 +25,17 @@ for (const name of licenseFiles) {
 }
 const windowsPacker = read('scripts/build_apk.ps1');
 assert.match(windowsPacker, /Get-ChildItem .*LICENSES.*-Filter \*\.txt/);
+for (const name of ['DEPENDENCIES.md', 'ARTWORK_RIGHTS.md', 'REFERENCE_CHARACTER_NOTICE.md']) {
+  assert.ok(shellPacker.includes(`assets/licenses/${name}:`), `Unix APK includes ${name}`);
+  assert.ok(windowsPacker.includes(name), `Windows APK includes ${name}`);
+}
+const rights = read('ARTWORK_RIGHTS.md');
+assert.ok(rights.includes('2026-11-02') && rights.includes('ChatGPT'));
+assert.ok(rights.includes('No separate blanket MIT license'));
+assert.ok(!rights.includes('blocked pending'));
+const referenceNotice = read('payload/opt/dsh/android/ball-web/reference/NOTICE.md');
+assert.ok(referenceNotice.includes('thirteen expression patches'));
+assert.ok(referenceNotice.includes('ARTWORK_RIGHTS.md'));
 
 const update = JSON.parse(read('update.json'));
 assert.match(update.hot.manifest, /^https:\/\/cdn\.jsdelivr\.net\/gh\/Xiax550\/DeepSeek-Harness-for-Android-by-X@main\//);

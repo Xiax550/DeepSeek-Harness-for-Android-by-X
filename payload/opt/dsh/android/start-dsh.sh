@@ -48,6 +48,7 @@ echo "start-dsh: node=$NODE"
 # See payload/opt/dsh/android/repair-dsh.mjs for what it fixes.
 "$NODE" "$DSH_INSTALL/android/repair-dsh.mjs" "$DSH_INSTALL/node_modules" 2>&1 | sed 's/^/start-dsh: /' || true
 "$NODE" "$DSH_INSTALL/android/repair-model-fetch.mjs" "$DSH_INSTALL/node_modules" 2>&1 | sed 's/^/start-dsh: /' || true
+"$NODE" "$DSH_INSTALL/android/repair-session-navigation.mjs" "$DSH_INSTALL/node_modules" 2>&1 | sed 's/^/start-dsh: /' || true
 
 
 # Recovery mode turns root's password into a one-shot token. It restores it on
@@ -91,6 +92,11 @@ if [ -d "$DSH_INSTALL/dsh-home-seed" ]; then
   "$NODE" "$DSH_INSTALL/android/repair-profile.mjs" \
     "$DSH_INSTALL/dsh-home-seed" "$DSH_HOME" \
     "$DSH_INSTALL/android/builtin-meow-memory" 2>&1 | sed 's/^/start-dsh: /' || true
+fi
+
+# Import before disabling the legacy bundle; errors leave its profile unchanged.
+if [ -f "$DSH_INSTALL/dsh-plugin-android/lib/memory-migration.js" ]; then
+  "$NODE" "$DSH_INSTALL/dsh-plugin-android/lib/memory-migration.js" "$DSH_HOME" 2>&1 | sed 's/^/start-dsh: /' || true
 fi
 
 # The plugin is app code, not user data: refresh it on every start so an app

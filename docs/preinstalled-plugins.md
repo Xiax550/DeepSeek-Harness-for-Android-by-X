@@ -4,10 +4,9 @@
 [github.com/dsh-market/dsh-market](https://github.com/dsh-market/dsh-market)）。
 你可以在 Harness 里逛插件、点一下安装。**这份说明讲清楚它会做什么、会连哪些网、离线怎么办、怎么关掉。**
 
-此外预装种子版本的本地插件 **`meow-memory` 0.31.0**（市场名称“喵记忆”，MIT）。它使用
-工作区里的 `.dsh-meow/memory.db` 保存跨会话记忆，不依赖外部服务；不想要时从
-profile 的 `dsh.profile.bundles` 去掉 `meow-memory` 即可。内置版本是安装下限：
-应用启动时只在本机缺失或版本更旧时播种，市场后续更新的更高版本不会被应用覆盖。
+从 1.2.51 起，长期记忆由 [DHA 内置记忆](native-memory.md) 提供，不需要安装喵记忆。
+旧版 **`meow-memory`**（MIT）的 `.dsh-meow/memory.db` 会只读导入，导入成功才停用旧加载项。
+原数据库和已安装插件不删除，市场更新过的高版本也不覆盖；旧种子文件保留用于兼容。
 
 技术出处与哈希见仓库根目录 [`THIRD_PARTY.md`](../THIRD_PARTY.md)；本页只讲**行为与你的选择**。
 

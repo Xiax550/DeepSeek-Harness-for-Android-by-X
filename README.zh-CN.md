@@ -15,10 +15,10 @@
 
 - **应用名**：DHA（DeepSeek Harness Android）
 - **包名**：`com.dha.harness`
-- **版本**：1.2.50（versionCode 10263）
+- **版本**：1.2.58（versionCode 10271）
 - **底座**：基于 [itiswdwa/dsh-android](https://github.com/itiswdwa/dsh-android) v1.2.1 二次开发
 - **签名**：`CN=DHA`（独立正式签名，非 debug）
-- **上游与依赖**：包含 DeepSeek Harness、Coopanion 衍生悬浮角色、Shizuku、Vosk 等第三方组件；来源、版本、用途、许可证和未解决事项见 [`DEPENDENCIES.md`](DEPENDENCIES.md) 与 [`THIRD_PARTY.md`](THIRD_PARTY.md)
+- **上游与依赖**：包含 DeepSeek Harness、Shizuku、Vosk 等组件；当前玩偶使用独立参考图二维网格，历史 Coopanion 来源声明保留。依赖与许可见 [`DEPENDENCIES.md`](DEPENDENCIES.md) 和 [`THIRD_PARTY.md`](THIRD_PARTY.md)
 
 ## 源码与许可
 
@@ -38,9 +38,9 @@ AGPL-3.0-or-later 组件。PRoot 对应的 OpenMinis 应用提交、PRoot 子模
 另外还带手机本机能力（上游已内置）：
 
 - **手机助手**（无障碍服务）：让 agent 读屏、点击、输入、滑动
-- **悬浮球**：常驻语音/文字入口；角色渲染参考 Coopanion，第三方来源和许可证见 [`DEPENDENCIES.md`](DEPENDENCIES.md)
+- **悬浮球**：常驻语音/文字入口；支持随机动作、表情、久置坐下/入睡和唤醒伸懒腰。现用素材由维护者使用 ChatGPT 创作修改，发行说明见 [`ARTWORK_RIGHTS.md`](ARTWORK_RIGHTS.md)
 - **内置离线语音**：Vosk 中文 small model 随 APK 提供，不依赖手机系统语音服务
-- **喵记忆**：插件市场的跨会话项目记忆已作为本地插件预装
+- **记忆、回忆、遗忘**：内置跨会话记忆与定时整理；兼容导入旧喵记忆，保留源数据库。详见 [`docs/native-memory.md`](docs/native-memory.md)
 - **手机控制**：`ui` 自动选择无障碍与 Shizuku/ADB：读屏和文字操作优先无障碍，坐标点击、滑动和按键优先 ADB，失败时自动回退
 - **沙箱终端**：左侧 `>_` 图标，真 PTY
 - **挂载手机文件夹 / 导出文件到 Download**

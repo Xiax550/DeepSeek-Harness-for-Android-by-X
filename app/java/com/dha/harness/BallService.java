@@ -23,6 +23,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -100,8 +101,8 @@ public final class BallService extends Service {
     /** Appearance, set from the settings page through `/ball/config`. */
     static final String PREF_SIZE = "ballSizeDp";
     static final String PREF_IMAGE = "ballImagePath";
-    static final int DEFAULT_SIZE_DP = 58;
-    static final int MIN_SIZE_DP = 40;
+    static final int DEFAULT_SIZE_DP = 54;
+    static final int MIN_SIZE_DP = 54;
     static final int MAX_SIZE_DP = 120;
 
     /** Where the ball lives, in raw pixels: the top-left of its padded box. */
@@ -132,10 +133,11 @@ public final class BallService extends Service {
     private static final float EDGE_TURN_ZONE = 0.18f;
 
     /** The stacked composer: input pill above, then the doll. */
-    private static final float BAR_WIDTH_FRACTION = 0.78f;
+    private static final float BAR_WIDTH_FRACTION = 0.64f;
+    private static final int BAR_MAX_WIDTH_DP = 300;
     private static final int BAR_STACK_GAP_DP = 6;
-    /** Compact field: the old 74 dp pill covered too much of the screen. */
-    private static final int INPUT_HEIGHT_DP = 58;
+    /** Compact input row; the doll and result bubble keep their own dimensions. */
+    private static final int INPUT_HEIGHT_DP = 44;
     /** One morph, both ways; the whale and the plane run inside it. */
     private static final long MORPH_MS = 400;
 
@@ -254,6 +256,50 @@ public final class BallService extends Service {
     private boolean usingOfflineVoice;
     private String heard;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final BallRestPolicy restPolicy = new BallRestPolicy(SystemClock.elapsedRealtime());
+    private volatile boolean resting;
+    private volatile int idleStage;
+    private final Runnable idleRestCheck = this::checkIdleRest;
+
+    static void userInteraction() {
+        BallService service = live;
+        if (service == null) return;
+        if (Looper.myLooper() == Looper.getMainLooper()) service.recordInteraction();
+        else service.handler.post(service::recordInteraction);
+    }
+
+    private void recordInteraction() {
+        if (!running) return;
+        restPolicy.interact(SystemClock.elapsedRealtime());
+        setResting(false);
+        handler.removeCallbacks(idleRestCheck);
+        handler.postDelayed(idleRestCheck, BallRestPolicy.IDLE_MS);
+    }
+
+    private void checkIdleRest() {
+        if (!running) return;
+        long now = SystemClock.elapsedRealtime();
+        boolean busy = listening || touch.touching || ScreenAwake.tasksActive()
+                || MainActivity.screenWatchActive() || "think".equals(phase)
+                || "work".equals(phase);
+        int next = restPolicy.stage(now, busy);
+        setIdleStage(next);
+        handler.removeCallbacks(idleRestCheck);
+        handler.postDelayed(idleRestCheck, busy ? 15000L : restPolicy.remaining(now));
+    }
+
+    private void setResting(boolean value) {
+        setIdleStage(value ? 1 : 0);
+    }
+
+    private void setIdleStage(int stage) {
+        if (idleStage == stage) return;
+        idleStage = stage;
+        resting = stage > 0;
+        if (barReady) eval(bar, "BallUI.idleStage(" + stage + ")");
+        if (resting) ScreenAwake.release();
+        App.log("ball idle stage: " + stage);
+    }
 
     /** What the bubble should show; the page owns the frames and the labels. */
     private volatile String phase = "idle";
@@ -319,6 +365,7 @@ public final class BallService extends Service {
 
     /** Keep the input bar's observer button in sync with the web plugin. */
     static void pushScreenWatchActive(boolean active) {
+        if (active) userInteraction();
         WebView target = barWebView;
         if (target == null) return;
         target.post(() -> {
@@ -448,6 +495,7 @@ public final class BallService extends Service {
         taskKeepScreenOn = ScreenAwake.tasksActive();
         showVisual();
         showBar();
+        recordInteraction();
         App.log("floating ball shown: bar window + status layer, size=" + sizeDp()
                 + "dp density=" + density());
     }
@@ -640,7 +688,7 @@ public final class BallService extends Service {
         } else if (barParams != null && !currentFrameVisible()) {
             scheduleDisplayRecovery();
         }
-        handler.postDelayed(displayWatchdog, 2000);
+        handler.postDelayed(displayWatchdog, resting ? 10000 : 2000);
     }
 
     private boolean currentFrameVisible() {
@@ -763,7 +811,8 @@ public final class BallService extends Service {
         int available = right
                 ? ball[0] + ball[2]
                 : screenWidth() - ball[0];
-        int width = Math.min(Math.round(screenWidth() * BAR_WIDTH_FRACTION),
+        int width = Math.min(Math.min(dp(BAR_MAX_WIDTH_DP),
+                        Math.round(screenWidth() * BAR_WIDTH_FRACTION)),
                 Math.max(sizePx(), available));
         int inputHeight = dp(INPUT_HEIGHT_DP);
         int height = inputHeight + dp(BAR_STACK_GAP_DP) + sizePx();
@@ -955,6 +1004,7 @@ public final class BallService extends Service {
         barReady = true;
         lastPushedSide = null;
         applySettings();
+        eval(web, "BallUI.idleStage(" + idleStage + ")");
         pushScreenWatchActive(MainActivity.screenWatchActive());
         eval(web, "BallUI.setSize(" + sizeDp() + ")");
         // The page can finish loading after the user has already opened the bar
@@ -1006,6 +1056,7 @@ public final class BallService extends Service {
     }
 
     private void applyTaskScreenAwake(boolean awake) {
+        if (awake) recordInteraction();
         taskKeepScreenOn = awake;
         if (barParams != null) {
             boolean focusable = (barParams.flags
@@ -1125,7 +1176,10 @@ public final class BallService extends Service {
         expanded = true;
         // The window now hosts a text field: the ball's gesture listener has to
         // go, or the WebView would never see a tap.
-        bar.setOnTouchListener(null);
+        bar.setOnTouchListener((view, event) -> {
+            recordInteraction();
+            return false;
+        });
         setBarFocusable(false);
         eval(bar, "BallUI.expand()");
         pushBarOrigin();
@@ -1441,6 +1495,11 @@ public final class BallService extends Service {
             answer.put("age", service == null || service.phaseAt == 0
                     ? 0 : System.currentTimeMillis() - service.phaseAt);
             answer.put("expanded", service != null && service.expanded);
+            answer.put("resting", service != null && service.resting);
+            answer.put("idleStage", service == null ? 0 : service.idleStage);
+            answer.put("idleTimeoutMs", BallRestPolicy.IDLE_MS);
+            answer.put("drowsyTimeoutMs", BallRestPolicy.DROWSY_MS);
+            answer.put("sleepTimeoutMs", BallRestPolicy.SLEEP_MS);
         } catch (Exception ignored) {
         }
         return answer;
@@ -1542,6 +1601,7 @@ public final class BallService extends Service {
         bubbleResult = "result".equals(phase) || keepResult;
         bubbleResultUntil = bubbleResult ? now + RESULT_HOLD_MS : 0;
         phaseAt = now;
+        if (!"idle".equals(next)) recordInteraction();
         handler.removeCallbacks(deliveryThink);
         handler.removeCallbacks(sayHide);
         handler.removeCallbacks(stale);
@@ -1851,6 +1911,7 @@ public final class BallService extends Service {
 
         @Override
         public boolean onTouch(View view, MotionEvent event) {
+            recordInteraction();
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
                     cancelPendingSideTurn();
@@ -2186,8 +2247,14 @@ public final class BallService extends Service {
     private final class Composer {
 
         @JavascriptInterface
+        public void interact() {
+            userInteraction();
+        }
+
+        @JavascriptInterface
         public void send(final String text) {
             handler.post(() -> {
+                recordInteraction();
                 if (text == null || text.trim().isEmpty()) {
                     notice(getString(R.string.ball_empty));
                     return;
