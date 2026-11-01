@@ -21,7 +21,7 @@
 | 图标 | 改用维护者提供的 DHA 原图 `assets/dha-icon-source.png`，生成各密度、亮暗主题、自适应图标和通知图标 |
 | 签名 | 新建独立 keystore（`CN=DHA`），不使用上游示例口令 |
 | 构建脚本 | 新增 `scripts/build_apk.ps1`（Windows，无需 Gradle/WSL）；上游仅有 Linux 版 `build_apk.sh` |
-| 图标脚本 | 新增 `scripts/make_icons.py`（纯 Python）；上游 `render_icon.py` 依赖 Linux 的 `rsvg-convert` |
+| 启动图标 | 使用维护者授权的 `assets/dha-icon-source.png`，由 `scripts/make_icons.py` 生成；旧 DeepSeek 鲸鱼启动图生成器已移除 |
 
 **修改边界**：使用上游 Harness 作为主体，不等于所有上游文件均未修改。
 启动脚本、控制桥（`BridgeServer`）、手机助手（`Assist`/`BallService`）及
