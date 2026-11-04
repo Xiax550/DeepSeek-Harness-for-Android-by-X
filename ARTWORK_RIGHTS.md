@@ -17,7 +17,7 @@ AI-assisted creation alone is not represented as proof of exclusive rights.
 
 | Asset | Source identifier | SHA-256 |
 |---|---|---|
-| Current character reference | `file_000000006b2081f59048643d46a512b2.png` | `870f6a9616bcef89925f259cc791df5e8aab826e878722451c85c3424248aec8` |
+| Current character reference, replaced by the maintainer on 2026-11-03 | `file_00000000b14481f586c88e3beafdd891.png` | `086897103392dcf895789524548a8cddd691ec5039a7521bb964056bddbefcec` |
 | Launcher icon | `assets/dha-icon-source.png`, supplied as `222.png` | `e56a54b35dffe941d2623debb42474ebcbd0fd335e25cb7b096a7a2370003799` |
 
 ## Distribution scope
@@ -32,9 +32,10 @@ The project code license does not automatically license artwork or trademarks.
 ## Renderer and historical components
 
 The current character uses an independent reference-texture 2D mesh, not a
-Cubism/Live2D model. Its seven poses and thirteen expression patches derive from
+Cubism/Live2D model. Its three front poses and thirteen expression patches derive from
 the current reference, not the old Coopanion character parts. Extraction and
 source hashes are recorded in the reference model manifest.
+Profile and rear drawings are costume documentation, not runtime animation poses.
 
 Historical Coopanion-derived code and artwork retain their original AGPL and
 asset-specific notices. Replacing the renderer does not relicense historical

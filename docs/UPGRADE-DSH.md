@@ -95,7 +95,7 @@ sh /root/.dsh-upgrade/upgrade-dsh.sh rec
 | 事件 | 对升级的影响 |
 |---|---|
 | 重启应用 / 应用热更新（`hot.zip`） | **不影响**：热覆盖只写 `opt/dsh/android/`、`opt/dsh/dsh-plugin-android/`、`etc/`、`@home/`，不碰 `opt/dsh/node_modules/` |
-| 装一个带新载荷的 APK | **冲掉**：载荷更新会整棵替换 runtime，升级回到载荷里的版本。要让它成为默认，得改 `prepare_rootfs.sh` 并出一个新的终端版本（`t3`）与新 APK；构建步骤见 [BUILD.md](BUILD.md)。 |
+| 装一个带新载荷的 APK | **冲掉**：载荷更新会整棵替换 runtime（见 HANDOFF §4.1d），升级回到载荷里的版本。要让它成为默认，得改 `prepare_rootfs.sh` 并出一个新的终端版本（`t3`）与新 APK |
 | 备份 | 留在 `/opt/dsh-backups/<时间戳>-<版本>/`，脚本把最近一次记在 `$HOME/.dsh-upgrade/last-backup`。确认新版本没问题后可以删掉（每个约 234MB） |
 
 ## 真机实录（2026-10-16，本机）

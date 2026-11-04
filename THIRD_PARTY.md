@@ -5,10 +5,14 @@
 
 ## 仓库内
 
+骨骼动画使用 Three.js r160（0.160.1），本地随包分发，不在运行时请求 CDN。
+上游为 `mrdoob/three.js`；MIT 原文见 `LICENSES/three-js-MIT.txt`。
+当前角色的分层素材全部来自本项目现用参考图，不使用历史角色部件。
+
 | 内容 | 来源 | 许可 |
 |---|---|---|
 | `assets/dha-icon-source.png` | 维护者确认使用 ChatGPT 创作修改（原文件名 `222.png`，sha256 `e56a54b35dffe941d2623debb42474ebcbd0fd335e25cb7b096a7a2370003799`），见 `assets/README.md` | 维护者授权纳入 DHA 发行；不自动适用代码 MIT，见 `ARTWORK_RIGHTS.md` |
-| `assets/whale.svg` 与 `plugin/dsh-plugin-android/lib/client.js` 中的悬浮球预设矢量路径 | [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 前端 favicon（品牌标识）；SVG 用于保留来源，图标路径在设置中用于预设预览 | MIT（标识本身是 DeepSeek 的商标） |
+| `assets/whale.svg` | [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 前端 favicon（品牌标识） | MIT（标识本身是 DeepSeek 的商标） |
 | `app/libs/shizuku-*.jar` | `dev.rikka.shizuku:api|aidl|shared|provider:13.1.5`，从 Maven Central 取（经 aliyun 镜像）；四个 artifact 的 POM 均指向 Shizuku-API 的 MIT 声明 | MIT，版权声明和文本见 [`LICENSES/Shizuku-API-MIT.txt`](LICENSES/Shizuku-API-MIT.txt) |
 | `app/libs/hiddenapibypass-6.1.jar` | `org.lsposed.hiddenapibypass:hiddenapibypass:6.1` | Apache-2.0 |
 | `app/libs/okhttp-3.14.9.jar` | `com.squareup.okhttp3:okhttp:3.14.9`，Edge 在线语音合成的 HTTP/WebSocket 客户端 | Apache-2.0 |

@@ -6,7 +6,7 @@
 <title>DSH 悬浮球</title>
 <style>
 :root{--surface:rgba(13,15,19,.68);--hairline:rgba(255,255,255,.20);--ink:#fff;--size:54px;
-  --input-height:44px;--control-size:44px;
+  --input-height:44px;--control-size:44px;--frame-edge:rgba(143,158,184,.95);
   /* One shadow entry per state, in the same order, so the two states interpolate.
      Order: drop shadow, tighter second shadow, inner bottom shade, top highlight.
      The window is exactly the ball's square when closed, so an OUTER shadow has
@@ -33,9 +33,8 @@
 html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden;font-family:var(--font);
   -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 #bar{position:absolute;left:0;right:0;top:calc(50% - var(--size) / 2);height:var(--size);
-  display:flex;align-items:center;border:1px solid var(--hairline);border-radius:999px;
-  background:var(--surface);overflow:hidden;
-  box-shadow:var(--shadow-rest);transition:background-color .18s ease,border-color .18s ease,box-shadow .35s ease}
+  display:flex;align-items:center;border:1px solid transparent;border-radius:999px;
+  background:transparent;overflow:hidden;box-shadow:none}
 /* The idle ball is only the blue-fish mark: no disc, outline or square canvas. */
 #bar.ball{background:transparent;border:0;box-shadow:none}
 #bar.ball #whale{filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
@@ -59,7 +58,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
    ball's own height; only the width comes from the text. The text block keeps the
    width it was measured at while the window grows, so the line is revealed
    instead of re-wrapping on every frame of the morph. */
-#bar.bubble{top:0;height:100%;gap:8px;background:transparent;border-color:transparent;box-shadow:none;overflow:visible}
+#bar.bubble{top:0;height:100%;gap:8px;background:transparent;border:0;box-shadow:none;overflow:visible}
 /* The whale stays: it is the capsule's starting end, exactly the square it
    occupied while the ball was closed, so expanding the ball into the bubble
    leaves it where it was. Only the typing bar's controls go away. */
@@ -114,7 +113,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   #bubbleText{max-height:calc(var(--lines, 3) * 20px + 18px)}
    #bubbleText{display:none;position:relative;flex:0 1 auto;width:max-content;min-width:52px;
    max-width:360px;padding:8px 12px;color:#202124;background:rgba(255,255,255,.97);
-   border:1px solid rgba(0,0,0,.10);border-radius:12px;
+   border:1px solid transparent;border-radius:12px;
+   outline:1px solid var(--frame-edge);outline-offset:-2px;
    box-shadow:0 3px 12px rgba(0,0,0,.28);font:500 14px/20px var(--font);
    text-align:center;white-space:normal;word-break:break-word;overflow-wrap:anywhere;
    max-height:100%;overflow-x:hidden;overflow-y:auto}
@@ -124,13 +124,11 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
    #bar.mirror.bubble #bubbleText::after{right:-5px}
     #bubbleText.result{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
     #bar.bubble #bubbleText{display:block}
-    /* Thinking is a lightweight status, not a card. Its text stays readable on
-       any app through a shadow, but the capsule, tail and close-button plate use
-       no background at all. Work, done and result bubbles keep their surface. */
-    #bar.bubble.thinking #bubbleText{background:transparent;border-color:transparent;box-shadow:none;
+    /* Status and input share a fine outline while their interiors stay transparent. */
+    #bar.bubble.thinking:not(.result) #bubbleText,#bar.bubble.spinning:not(.result) #bubbleText{background:transparent;box-shadow:none;
       color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.85)}
-    #bar.bubble.thinking #bubbleText::after{display:none}
-    #bar.bubble.thinking #bubbleDismiss{background:transparent;box-shadow:none;color:#fff;
+    #bar.bubble.thinking:not(.result) #bubbleText::after,#bar.bubble.spinning:not(.result) #bubbleText::after{display:none}
+    #bar.bubble.thinking:not(.result) #bubbleDismiss,#bar.bubble.spinning:not(.result) #bubbleDismiss{background:transparent;box-shadow:none;color:#fff;
       text-shadow:0 1px 3px rgba(0,0,0,.95)}
 /* The fish is the video's visual anchor; the small × makes dismissal visible.
    Native touch handling owns the hit target, so this stays pointer-transparent
@@ -146,7 +144,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 /* Off-screen twin of that text: a bubble starts while the window is still the
    ball, so its width has to be measurable before the window has grown. */
 #measure{position:absolute;left:-10000px;top:0;visibility:hidden;width:max-content;
-  font:500 14px/20px var(--font);padding:8px 12px;border:1px solid transparent;
+  font:500 14px/20px var(--font);padding:8px 34px 8px 12px;border:1px solid transparent;
   text-align:left;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
 /* side="right": the ball's right edge is the window's right edge, so the whale
    and the buttons swap ends and the capsule still grows out of the ball. */
@@ -185,8 +183,9 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 #bar.figure-ready #figureDoll{display:block}
 #inputPill{display:none;position:absolute;left:0;right:0;top:0!important;
   height:var(--input-height);align-items:center;gap:2px;
-  border:1px solid var(--hairline);border-radius:999px;
-  background:var(--surface);box-shadow:var(--shadow-open);overflow:hidden;
+  border:1px solid transparent;border-radius:999px;
+  outline:1px solid var(--frame-edge);outline-offset:-2px;
+  background:transparent;box-shadow:none;overflow:hidden;
   opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;
   transition:opacity .16s ease,transform .2s cubic-bezier(.2,.9,.3,1)}
 #bar.full #inputPill{display:flex}
@@ -197,7 +196,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 #field{flex:1 1 auto;min-width:0;height:100%;display:flex;align-items:center}
 #text{flex:1 1 auto;min-width:0;height:100%;margin:0;border:0;outline:0;background:transparent;color:var(--ink);
   caret-color:var(--ink);font:400 14px/1 var(--font);padding:0 7px 0 4px;-webkit-appearance:none;appearance:none}
-#text::placeholder{color:rgba(255,255,255,.45)}
+#text,#text::placeholder{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 6px rgba(0,0,0,.85)}
+#inputPill button svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.95))}
 #bar.mirror #text{text-align:right}
 #send,#close,#watch{flex:none;display:grid;place-items:center;margin:0;padding:0;border:0;background:transparent;
   color:var(--ink);-webkit-appearance:none;appearance:none;cursor:pointer}
@@ -210,7 +210,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 #bar.bubble #watch{display:none}
 #watch svg{width:50%;height:50%;display:block;pointer-events:none}
 #bar.mirror #watch{order:-1}
-#watch.on{color:#7bd8ff;background:rgba(72,179,235,.18);border-radius:999px}
+#watch.on{color:#7bd8ff;background:transparent;border-radius:999px}
 #watch.on::after{content:"";position:absolute;right:7px;top:9px;width:5px;height:5px;border-radius:50%;
   background:#7bd8ff;box-shadow:0 0 0 2px rgba(72,179,235,.20)}
 #send:active,#close:active,#watch:active{background:rgba(255,255,255,.12);border-radius:999px}
@@ -287,7 +287,13 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
 </div>
 <div id="measure" aria-hidden="true"></div>
 <script src="./reference/model.js"></script>
+<script src="./reference/motion/clips.js"></script>
+<script src="./reference/motion-player.js"></script>
+<script src="./reference/gesture-policy.js"></script>
 <script src="./reference/figure.js"></script>
+<script src="./reference/skeleton/three.min.js"></script>
+<script src="./reference/skeleton/rig.js"></script>
+<script src="./reference/skeleton/renderer.js"></script>
 <script>
 (function () {
   "use strict";
@@ -397,14 +403,24 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   var idleLookTimer = 0, idleLookReturnTimer = 0;
   var rareGestureKind = "", rareGestureStart = 0, rareGestureTimer = 0;
   var gestureDuration = 2400, expressionUntil = 0, reactionExpression = "neutral";
+  var renderedGesture = null, gestureRelease = null;
   var nextBlinkAt = performance.now() + 4000, blinkUntil = 0;
-  var gestureKinds = ["earTwitch", "nod", "tilt", "wave", "stretch", "sideLook"];
+  var faceExpression = "neutral", facePreviousExpression = "neutral", faceChangedAt = 0;
+  var gestureKinds = window.DHA_GESTURE_POLICY.kinds;
   var figureTime = 0;
   var resting = false, restAmount = 0, restChangedAt = 0, restFrom = 0;
   var REST_TRANSITION_MS = 1700;
   var idleStage = 0, sleepAmount = 0, sleepFrom = 0, sleepChangedAt = 0;
-  var SLEEP_TRANSITION_MS = 2400;
+  var drowsyStartedAt = 0;
+  var YAWN_START_MS = 5200, YAWN_DURATION_MS = 2200;
+  function yawnProgress(now) {
+    if (idleStage !== 2 || reduced()) return 0;
+    return Math.max(0, Math.min(1, (now - drowsyStartedAt - YAWN_START_MS) / YAWN_DURATION_MS));
+  }
+  var SLEEP_TRANSITION_MS = 5200;
+  var sleepTransitionMs = SLEEP_TRANSITION_MS;
   var wakeMotion = null;
+  var workRecovery = null;
   var renderFrame = 0, renderTimer = 0, renderedFrames = 0;
   var pagePaused = false;
   async function initReference() {
@@ -412,8 +428,16 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     var generation = ++figureGeneration;
     figureStarting = true;
     try {
-      if (!window.ReferenceCharacter) throw new Error("Reference character renderer missing");
-      var loaded = await window.ReferenceCharacter.create(new URL("./reference/", window.location.href));
+      var factory = window.SkeletalCharacter || window.ReferenceCharacter;
+      if (!factory) throw new Error("Reference character renderer missing");
+      var loaded;
+      try {
+        loaded = await factory.create(new URL("./reference/", window.location.href));
+      } catch (skeletalError) {
+        if (factory === window.ReferenceCharacter || !window.ReferenceCharacter) throw skeletalError;
+        toBall("log", "composer.html skeletal renderer unavailable; using reference fallback: " + String(skeletalError));
+        loaded = await window.ReferenceCharacter.create(new URL("./reference/", window.location.href));
+      }
       if (generation !== figureGeneration || customDoll) { loaded.dispose(); return; }
       characterFigure = loaded;
       figureDoll.setAttribute("viewBox", "0 0 256 256");
@@ -440,12 +464,13 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   }
   function queueDollFrame() {
     if (pagePaused) return;
-    if (resting && idleStage !== 2 && performance.now() - restChangedAt > REST_TRANSITION_MS + 100
-        && performance.now() - sleepChangedAt > SLEEP_TRANSITION_MS + 100) {
+    if (!(characterFigure && characterFigure.needsFrame && characterFigure.needsFrame()) && resting && idleStage !== 2
+        && performance.now() - restChangedAt > REST_TRANSITION_MS + 100 && restAmount === 1
+        && sleepAmount === (idleStage === 3 ? 1 : 0)) {
       renderTimer = window.setTimeout(function () {
         renderTimer = 0;
         renderFrame = window.requestAnimationFrame(renderDoll);
-      }, 1000);
+      }, idleStage === 3 && !reduced() ? 100 : 1000);
     } else {
       renderFrame = window.requestAnimationFrame(renderDoll);
     }
@@ -457,11 +482,13 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     stage = Number(stage);
     if (!isFinite(stage) || stage < 0 || stage > 3 || Math.floor(stage) !== stage) return;
     var next = stage > 0;
+    if (next && workRecovery) return;
     if (next && (listening || bar.classList.contains("watch-on")
         || bar.classList.contains("spinning") || bubblePhase === "think" || bubblePhase === "work")) return;
     if (idleStage === stage) return;
     updateRestAmount(performance.now());
     updateSleepAmount(performance.now());
+    var previousWake = wakeMotion;
     var wasWaking = !!wakeMotion;
     var wakeFromSleep = !next && !reduced() && (idleStage >= 2 || sleepAmount > .02);
     wakeMotion = null;
@@ -470,16 +497,35 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
       // Lift from prone before rising, rather than dissolving straight into standing.
       restChangedAt = performance.now() + (!next && !reduced() ? sleepAmount * 1200 : 0);
     }
-    if (wasWaking || (idleStage === 3) !== (stage === 3)) { sleepFrom = sleepAmount; sleepChangedAt = performance.now(); }
+    if (wasWaking || (idleStage === 3) !== (stage === 3)) {
+      sleepFrom = sleepAmount;
+      sleepChangedAt = performance.now();
+      sleepTransitionMs = SLEEP_TRANSITION_MS;
+      if (stage === 3 && restAmount < .999) {
+        var sitWait = Math.max(0, restChangedAt + REST_TRANSITION_MS - performance.now());
+        sleepChangedAt += sitWait;
+        sleepTransitionMs = Math.max(1700, SLEEP_TRANSITION_MS - sitWait);
+      }
+    }
     idleStage = stage;
+    if (stage === 2) drowsyStartedAt = performance.now();
+    else if (stage !== 3) drowsyStartedAt = 0;
     resting = next;
+    if (stage === 3 && previousWake && previousWake.sleep > .98 && previousWake.phase === "rising") {
+      var currentRise = Math.max(0, Math.min(1, (performance.now() - previousWake.start - previousWake.riseAt) / previousWake.riseMs));
+      var displayedMotion = characterFigure && characterFigure.info().wholeBodyMotion;
+      if (displayedMotion && displayedMotion.clip === "wake") currentRise = displayedMotion.progress;
+      workRecovery = { clip: "wake", start: performance.now(), progress: currentRise, target: 0,
+        duration: Math.max(500, Math.min(4000, previousWake.riseMs * currentRise)),
+        sit: restAmount, sleep: sleepAmount, endSit: 1, endSleep: 1 };
+    }
     bar.classList.toggle("resting", resting);
     if (stage !== 3) bar.classList.remove("sleeping");
     if (wakeFromSleep) {
-      var liftMs = 2100 * sleepAmount;
       wakeMotion = { start: performance.now(), sit: restAmount, sleep: sleepAmount,
-        liftMs: liftMs, riseAt: 350 + liftMs + 450, riseMs: 3000 * restAmount,
-        stretchMs: 2800, phase: "grumpy" };
+        lookAt: 0, lookMs: 2600,
+        riseAt: 2600, riseMs: 3000 * Math.max(restAmount, sleepAmount) + 1400 * sleepAmount,
+        stretchMs: window.DHA_GESTURE_POLICY.shouldWakeStretch(Math.random()) ? 3200 : 0, phase: "looking" };
       if (idleLookTimer) window.clearTimeout(idleLookTimer);
       if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
       if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
@@ -487,9 +533,10 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
       rareGestureKind = "";
       expressionUntil = blinkUntil = 0;
       bar.classList.remove("happy");
-      toBall("log", "character wake: grumpy");
+      toBall("log", "character wake: looking");
     }
     if (resting) {
+      gestureRelease = renderedGesture = null;
       if (idleLookTimer) window.clearTimeout(idleLookTimer);
       if (idleLookReturnTimer) window.clearTimeout(idleLookReturnTimer);
       if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
@@ -508,27 +555,61 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     queueDollFrame();
   }
   function updateRestAmount(now) {
+    if (workRecovery) {
+      var progress = reduced() ? 1 : Math.max(0, Math.min(1, (now - workRecovery.start) / workRecovery.duration));
+      var mix = postureEase(progress);
+      if (workRecovery.clip === "lie-sit") {
+        sleepAmount = workRecovery.sleep * (1 - postureEase(progress / .55));
+        restAmount = workRecovery.sit * (1 - postureEase((progress - .55) / .45));
+      } else {
+        restAmount = workRecovery.sit + (workRecovery.endSit - workRecovery.sit) * mix;
+        sleepAmount = workRecovery.sleep + (workRecovery.endSleep - workRecovery.sleep) * mix;
+      }
+      if (progress >= 1) {
+        restFrom = restAmount = workRecovery.endSit;
+        sleepFrom = sleepAmount = workRecovery.endSleep;
+        workRecovery = null;
+        restChangedAt = sleepChangedAt = now;
+        nextBlinkAt = now + 4000;
+        if (!resting) { scheduleIdleLook(); scheduleRareGesture(true); }
+      }
+      return;
+    }
     if (wakeMotion) { updateWakeMotion(now); return; }
     var progress = reduced() ? 1 : Math.max(0, Math.min(1, (now - restChangedAt) / REST_TRANSITION_MS));
-    var eased = progress * progress * (3 - 2 * progress);
+    var eased = postureEase(progress);
     restAmount = restFrom + ((resting ? 1 : 0) - restFrom) * eased;
   }
   function updateSleepAmount(now) {
-    if (wakeMotion) return;
-    var progress = reduced() ? 1 : Math.max(0, Math.min(1, (now - sleepChangedAt) / SLEEP_TRANSITION_MS));
-    var eased = progress * progress * (3 - 2 * progress);
+    if (wakeMotion || workRecovery) return;
+    var progress = reduced() ? 1 : Math.max(0, Math.min(1, (now - sleepChangedAt) / sleepTransitionMs));
+    var eased = postureEase(progress);
     sleepAmount = sleepFrom + ((idleStage === 3 ? 1 : 0) - sleepFrom) * eased;
+  }
+  function postureEase(value) {
+    value = Math.max(0, Math.min(1, value));
+    return value * value * value * (value * (value * 6 - 15) + 10);
   }
   function updateWakeMotion(now) {
     var wake = wakeMotion, elapsed = Math.max(0, now - wake.start);
     function ease(value) {
       value = Math.max(0, Math.min(1, value));
-      return value * value * (3 - 2 * value);
+      return postureEase(value);
     }
-    sleepAmount = wake.sleep * (1 - ease((elapsed - 350) / Math.max(1, wake.liftMs)));
-    restAmount = wake.sit * (1 - ease((elapsed - wake.riseAt) / Math.max(1, wake.riseMs)));
+    // Recover directly from the current pose. Never target a seated endpoint
+    // between prone and standing; that inserted a second, unwanted action.
+    var rise = (elapsed - wake.riseAt) / Math.max(1, wake.riseMs);
+    sleepAmount = wake.sleep * (1 - ease(rise / .7));
+    restAmount = wake.sit * (1 - ease(rise));
+    if (wake.sleep > 0 && wake.sleep <= .98) {
+      // A half-lowered body retraces its supported pose instead of jumping
+      // into a full-prone wake clip or standing before the hands are lifted.
+      var liftFraction = .55;
+      sleepAmount = wake.sleep * (1 - ease(rise / liftFraction));
+      restAmount = wake.sit * (1 - ease((rise - liftFraction) / (1 - liftFraction)));
+    }
     var stretchAt = wake.riseAt + wake.riseMs;
-    var phase = elapsed < 350 ? "grumpy" : elapsed < wake.riseAt ? "lifting"
+    var phase = elapsed < wake.riseAt ? "looking"
       : elapsed < stretchAt ? "rising" : elapsed < stretchAt + wake.stretchMs ? "stretching" : "normal";
     if (wake.phase !== phase) {
       wake.phase = phase;
@@ -538,6 +619,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
       wakeMotion = null;
       restFrom = restAmount = sleepFrom = sleepAmount = 0;
       restChangedAt = sleepChangedAt = now;
+      faceExpression = facePreviousExpression = "neutral";
+      faceChangedAt = now;
       nextBlinkAt = now + 4000;
       scheduleIdleLook();
       scheduleRareGesture(true);
@@ -546,6 +629,15 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   function finishWakeForWork() {
     if (!wakeMotion) return;
     updateWakeMotion(performance.now());
+    if (wakeMotion && wakeMotion.sleep > .98 && wakeMotion.phase !== "stretching") {
+      var progress = Math.max(0, Math.min(1, (performance.now() - wakeMotion.start - wakeMotion.riseAt) / wakeMotion.riseMs));
+      workRecovery = { clip: "wake", start: performance.now(), progress: progress, target: 1,
+        duration: Math.max(500, Math.min(4000, wakeMotion.riseMs * (1 - progress))),
+        sit: restAmount, sleep: sleepAmount, endSit: 0, endSleep: 0 };
+    } else if (wakeMotion && wakeMotion.phase !== "stretching" && sleepAmount > 0) {
+      workRecovery = { clip: "lie-sit", start: performance.now(), duration: 3500,
+        sit: restAmount, sleep: sleepAmount, endSit: 0, endSleep: 0 };
+    }
     wakeMotion = null;
     restFrom = restAmount;
     sleepFrom = sleepAmount;
@@ -560,9 +652,12 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     renderFrame = 0;
     queueDollFrame();
     var morphingNow = bar.classList.contains("morphing");
-    var activeNow = morphingNow || bar.classList.contains("spinning")
+    var joiningNow = characterFigure && characterFigure.needsFrame && characterFigure.needsFrame();
+    var poseMoving = !!wakeMotion || !!workRecovery || restAmount !== (resting ? 1 : 0)
+      || sleepAmount !== (idleStage === 3 ? 1 : 0);
+    var activeNow = morphingNow || poseMoving || !!rareGestureKind || !!gestureRelease || bar.classList.contains("spinning")
       || bar.classList.contains("pressed") || bar.classList.contains("happy");
-    var frameMs = morphingNow ? 16 : activeNow ? 33 : 50;
+    var frameMs = morphingNow || poseMoving || rareGestureKind || gestureRelease || joiningNow ? 16 : activeNow ? 33 : 50;
     if (now - doll.paintAt < frameMs) return;
     doll.paintAt = now;
     renderedFrames++;
@@ -620,38 +715,94 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
         rareGesture = { kind: rareGestureKind, k: Math.min(1, rareElapsed * 1000 / gestureDuration) };
       }
     }
-    var expression = idleStage >= 2 ? "sleepy" : resting ? "neutral" : listening || spinning || bar.classList.contains("watch-on")
+    var yawn = yawnProgress(now);
+    var yawning = yawn > 0 && yawn < 1;
+    var expression = idleStage === 3 || (idleStage === 2 && yawn > 0) ? "sleepy" : resting ? "neutral" : listening || spinning || bar.classList.contains("watch-on")
       || bubblePhase === "think" || bubblePhase === "work" ? "curious"
       : now < expressionUntil ? reactionExpression : bubbleResultMode ? "happy" : "neutral";
     if (wakeMotion) {
-      expression = wakeMotion.phase === "stretching" ? "sleepy" : "pout";
+      expression = wakeMotion.phase === "stretching" ? "sleepy"
+        : wakeMotion.phase === "looking" || sleepAmount > .05 ? "pout" : "neutral";
       if (wakeMotion.phase === "stretching") rareGesture = { kind: "stretch",
         k: Math.max(0, Math.min(1, (now - wakeMotion.start - wakeMotion.riseAt - wakeMotion.riseMs) / wakeMotion.stretchMs)) };
     }
+    if (rareGesture) {
+      gestureRelease = null;
+    } else if (!reduced()) {
+      if (!gestureRelease && renderedGesture && renderedGesture.k > 0 && renderedGesture.k < .98) {
+        gestureRelease = { start: now, gesture: renderedGesture,
+          duration: renderedGesture.kind === "stretch" ? Math.max(500, (1 - renderedGesture.k) * gestureDuration) : 180 };
+      }
+      if (gestureRelease) {
+        var releaseProgress = Math.min(1, (now - gestureRelease.start) / gestureRelease.duration);
+        var releaseMix = releaseProgress * releaseProgress * (3 - 2 * releaseProgress);
+        if (releaseProgress < 1) rareGesture = gestureRelease.gesture.kind === "stretch"
+          ? { kind: "stretch", k: gestureRelease.gesture.k + (1 - gestureRelease.gesture.k) * releaseMix }
+          : { kind: gestureRelease.gesture.kind,
+              k: gestureRelease.gesture.k, strength: (gestureRelease.gesture.strength == null ? 1
+                : gestureRelease.gesture.strength) * (1 - releaseMix) };
+        else gestureRelease = null;
+      }
+    } else gestureRelease = null;
+    renderedGesture = rareGesture;
     if (!resting && !wakeMotion && !pagePaused && !reduced() && now >= nextBlinkAt) {
-      blinkUntil = now + 150;
+      blinkUntil = now + 240;
       nextBlinkAt = now + 4000 + Math.random() * 3000;
     }
-    if (turnBlink || now < blinkUntil) expression = "blink";
+    if (!resting && !wakeMotion && expression !== "sleepy" && (turnBlink || now < blinkUntil)) expression = "blink";
+    if (expression !== faceExpression) {
+      facePreviousExpression = faceExpression;
+      faceExpression = expression;
+      faceChangedAt = now;
+    }
+    var faceProgress = reduced() ? 1 : Math.max(0, Math.min(1, (now - faceChangedAt) / 160));
+    var faceMix = faceProgress * faceProgress * (3 - 2 * faceProgress);
+    // Reuse the approved seated face, with a gentle opening and closing envelope.
+    if (yawning) {
+      facePreviousExpression = "neutral";
+      faceMix = postureEase(Math.min(yawn / .22, (1 - yawn) / .28));
+    }
     if (characterFigure) {
-      if (!morphing && !reduced()) figureTime += dt;
+      // Decorative springs use a bounded step, but breathing follows elapsed
+      // foreground time even when the resting renderer only paints at 10 Hz.
+      if (!morphing && !reduced()) figureTime += doll.figureAt ? Math.min(.25, (now - doll.figureAt) / 1000) : 1 / 60;
+      doll.figureAt = now;
+      var wakeGaze = 0;
+      if (wakeMotion && wakeMotion.phase === "looking") {
+        var gazeProgress = Math.max(0, Math.min(1, (now - wakeMotion.start - wakeMotion.lookAt) / wakeMotion.lookMs));
+        // Zero speed at both joins; look to either side without flipping art.
+        wakeGaze = Math.sin(gazeProgress * Math.PI * 2) * Math.pow(Math.sin(gazeProgress * Math.PI), 2);
+      }
       try {
         characterFigure.draw(figureRoot, null, {
           t: figureTime,
+          smoothJoins: true,
           side: currentSide,
           reducedMotion: reduced(),
           look: [
-            turnValue * 5.4 + Math.sin(figureTime * .72) * 1.1,
+            0,
             idleLookY
           ],
           sit: restAmount,
           sleep: sleepAmount,
-          drowsy: idleStage === 2,
+          waking: !!wakeMotion,
+          recoveringFromProne: !!wakeMotion && wakeMotion.sleep > .02,
+          wholeBodyWake: workRecovery && workRecovery.clip === "wake"
+            ? workRecovery.progress + (workRecovery.target - workRecovery.progress) * Math.max(0, Math.min(1, (now - workRecovery.start) / workRecovery.duration))
+            : wakeMotion && wakeMotion.sleep > .98 && wakeMotion.phase === "rising"
+              ? Math.max(0, Math.min(1, (now - wakeMotion.start - wakeMotion.riseAt) / wakeMotion.riseMs)) : null,
+          gazeX: wakeGaze,
+          drowsy: idleStage >= 2,
+          drowsyAmount: idleStage >= 2 && drowsyStartedAt ? postureEase((now - drowsyStartedAt) / 6500) * (1 - sleepAmount) : 0,
+          yawn: yawning ? yawn : 0,
           gesture: rareGesture,
-          expression: expression
+          expression: expression,
+          previousExpression: facePreviousExpression,
+          expressionMix: faceMix
         });
       } catch (error) {
         toBall("log", "composer.html reference character draw failed: " + String(error));
+        characterFigure.dispose();
         characterFigure = null;
         bar.classList.remove("figure-ready");
       }
@@ -740,12 +891,8 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
   function applyMirrorClass() {
     if (mirrored()) bar.classList.add("mirror");
     else bar.classList.remove("mirror");
-    // Mirror inside the SVG coordinate system. A CSS scaleX layer is resampled
-    // by Android WebView and made the right-side character look compressed.
-    var view = figureDoll.viewBox.baseVal;
-    var mirrorX = view.x * 2 + view.width;
-    figureMirror.setAttribute("transform",
-      mirrored() ? "translate(" + mirrorX + " 0) scale(-1 1)" : "");
+    // Screen side only anchors the controls; the character always faces front.
+    figureMirror.setAttribute("transform", "");
   }
   function setMirror() {
     applyMirrorClass();
@@ -755,20 +902,10 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     if (blinkSwitchTimer) window.clearTimeout(blinkSwitchTimer);
     if (blinkEndTimer) window.clearTimeout(blinkEndTimer);
     blinkSwitchTimer = blinkEndTimer = 0;
-    if (target === currentSide) { turnBlink = 0; return; }
-    // Two-dimensional characters turn by closing their eyes for a beat. The
-    // face never leaves; only the open-eye pose changes at the blink's peak.
-    turnBlink = 1;
-    blinkSwitchTimer = window.setTimeout(function () {
-      blinkSwitchTimer = 0;
-      currentSide = target;
-      applyMirrorClass();
-      turnTarget = target === "right" ? -1 : 1;
-    }, ms(150));
-    blinkEndTimer = window.setTimeout(function () {
-      blinkEndTimer = 0;
-      turnBlink = 0;
-    }, ms(400));
+    turnBlink = 0;
+    currentSide = target;
+    turnTarget = turnValue = 1;
+    applyMirrorClass();
   }
   function refreshSide() {
     if (blinkSwitchTimer) window.clearTimeout(blinkSwitchTimer);
@@ -781,7 +918,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
       currentSide = "left";
     }
     applyMirrorClass();
-    turnTarget = currentSide === "right" ? -1 : 1;
+    turnTarget = 1;
     if (reduced() || !sideInitialized) turnValue = turnTarget;
     sideInitialized = true;
   }
@@ -804,29 +941,29 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     }, waitMs);
   }
   function react(kind, expression) {
-    if (gestureKinds.indexOf(kind) === -1 || resting || wakeMotion || pagePaused || listening
+    if (gestureKinds.indexOf(kind) === -1 || resting || wakeMotion || workRecovery || pagePaused || listening
         || bar.classList.contains("spinning") || bar.classList.contains("watch-on")
         || bubblePhase === "think" || bubblePhase === "work") return false;
     var now = performance.now();
-    if (rareGestureKind && now - rareGestureStart < 300) return false;
+    if (rareGestureKind && now - rareGestureStart < gestureDuration) return false;
     reactionExpression = ["happy", "surprised", "curious", "pout", "sleepy"].indexOf(expression) >= 0
       ? expression : kind === "tilt" ? "curious" : "happy";
     var recovery = reduced() ? 0 : restAmount > .02 ? Math.max(0, restChangedAt + REST_TRANSITION_MS - now) : 0;
-    gestureDuration = kind === "sideLook" ? 4000 : 2400;
+    gestureDuration = 2400;
     expressionUntil = now + recovery + gestureDuration;
     rareGestureKind = reduced() ? "" : kind;
     rareGestureStart = now + recovery;
     return true;
   }
   function scheduleRareGesture(first) {
-    if (reduced() || resting || wakeMotion || pagePaused) return;
+    if (reduced() || resting || wakeMotion || workRecovery || pagePaused) return;
     if (rareGestureTimer) window.clearTimeout(rareGestureTimer);
     var waitMs = first ? 6000 + Math.floor(Math.random() * 4000)
       : 15000 + Math.floor(Math.random() * 20000);
     rareGestureTimer = window.setTimeout(function () {
       rareGestureTimer = 0;
       if (bar.classList.contains("ball") && !bar.classList.contains("pressed")) {
-        var kind = gestureKinds[Math.floor(Math.random() * gestureKinds.length)];
+        var kind = window.DHA_GESTURE_POLICY.pick(Math.random());
         var expression = kind === "earTwitch" ? "surprised" : kind === "stretch" ? "sleepy"
           : kind === "tilt" ? (Math.random() < .25 ? "pout" : "curious") : "happy";
         react(kind, expression);
@@ -1383,6 +1520,9 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     idleStage: setIdleStage,
     restInfo: function () {
       return { resting: resting, stage: idleStage, sleep: sleepAmount, amount: restAmount, frames: renderedFrames,
+        animationTime: figureTime,
+        yawnProgress: yawnProgress(performance.now()),
+        yawning: yawnProgress(performance.now()) > 0 && yawnProgress(performance.now()) < 1,
         transitioning: Math.abs(restAmount - (resting ? 1 : 0)) > .001
           || Math.abs(sleepAmount - (idleStage === 3 ? 1 : 0)) > .001,
         durationMs: REST_TRANSITION_MS, wakePhase: wakeMotion ? wakeMotion.phase : "",
@@ -1483,6 +1623,7 @@ html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden
     if (!pagePaused) return;
     pagePaused = false;
     doll.last = 0;
+    doll.figureAt = 0;
     queueDollFrame();
     if (!resting) { scheduleIdleLook(); scheduleRareGesture(true); }
   });

@@ -68,10 +68,10 @@ const stages = () => run('logcat', '-d', '-s', 'dsh:I').toString().split(/\r?\n/
       const phases = freshStages();
       fs.writeFileSync(path.join(out, 'wake-timeline.json'), JSON.stringify({ serial, frames: wakeFrames, phases }, null, 2));
       const wakeLogs = phases.join('\n');
-      for (const phase of ['grumpy', 'lifting', 'rising', 'stretching', 'normal']) {
+      for (const phase of ['looking', 'rising', 'stretching', 'normal']) {
         assert.match(wakeLogs, new RegExp('character wake: ' + phase), phase + ' occurs on the real phone');
       }
-      console.log('PASS native click wake sequence: grumpy/lifting/rising/stretching/normal');
+      console.log('PASS native click wake sequence: looking/rising/stretching/normal');
     } else await sleep(4000);
     capture('wake-click');
     assert.match(freshStages().join('\n'), /ball idle stage: 0/, 'tap wakes native policy');

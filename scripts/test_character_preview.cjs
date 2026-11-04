@@ -35,11 +35,11 @@ const previewUrl = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18764/
     const character = await compact.locator('#bar').evaluate(el => el.ownerDocument.defaultView.BallUI.characterInfo());
     assert.equal(character.sourceOnly, true);
     assert.deepEqual(character.previousAssets, []);
-    assert.equal(character.views.length, 7);
-    assert.ok(character.views.includes('sleep-front'), 'new sheet must include the real prone-sleep pose');
-    assert.ok(character.triangles >= 1600, 'new model must use a deformable mesh');
+    assert.equal(character.referencePoses, true);
+    assert.ok(character.views.includes('sit-front'));
+    assert.ok(character.views.includes('sleep-front'));
     assert.equal(await compact.locator('#figureMirror').getAttribute('transform'), '');
-    const bodyPixels = await compact.locator('#figureRoot canvas').evaluate(canvas => {
+    const bodyPixels = await compact.locator('#figureRoot canvas').first().evaluate(canvas => {
       const copy = document.createElement('canvas');
       copy.width = canvas.width; copy.height = canvas.height;
       const ctx = copy.getContext('2d');
@@ -87,7 +87,7 @@ const previewUrl = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18764/
     await page.evaluate(() => side('right'));
     await page.waitForFunction(() => {
       const frame = document.querySelector('iframe[title="Compact"]');
-      return frame.contentDocument.querySelector('#figureMirror').getAttribute('transform').includes('scale(-1 1)');
+      return frame.contentDocument.querySelector('#figureMirror').getAttribute('transform') === '';
     });
     await page.waitForTimeout(1100);
     await page.screenshot({ path: 'build/character-preview-right.png', fullPage: true });
@@ -240,6 +240,7 @@ const previewUrl = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18764/
     }
 
     assert.deepEqual(oldAssetRequests, [], 'no previous model texture, face or renderer may be requested');
+    await page.close();
     const variants = [];
     for (const fallback of [false, true]) {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 },
@@ -252,13 +253,15 @@ const previewUrl = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18764/
       });
       const mobile = await context.newPage();
       mobile.on('pageerror', error => errors.push(error.message));
-      await mobile.goto(previewUrl, { waitUntil: 'networkidle' });
+      await mobile.goto(previewUrl, { waitUntil: 'domcontentloaded' });
       const model = mobile.frameLocator('iframe[title="Compact"]');
       await model.locator('#bar.figure-ready').waitFor();
       const info = await model.locator('#bar').evaluate(el => el.ownerDocument.defaultView.BallUI.characterInfo());
-      assert.equal(info.renderer, fallback ? 'canvas-fallback' : 'webgl-mesh');
+      assert.equal(info.renderer, fallback ? 'canvas-skeleton' : 'three-skeleton');
       await model.locator('#bar').evaluate(el => el.ownerDocument.defaultView.BallUI.resting(true));
-      await mobile.waitForTimeout(100);
+      await model.locator('#bar').evaluate(el => new Promise(resolve =>
+        el.ownerDocument.defaultView.requestAnimationFrame(() =>
+          el.ownerDocument.defaultView.requestAnimationFrame(resolve))));
       const rest = await model.locator('#bar').evaluate(el => el.ownerDocument.defaultView.BallUI.restInfo());
       assert.equal(rest.amount, 1, 'reduced motion must not force a long transition');
       await mobile.screenshot({ path: 'build/reference-mobile-' + (fallback ? 'fallback' : 'mesh') + '.png', fullPage: true });
@@ -285,7 +288,7 @@ const previewUrl = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18764/
     }, customPath);
     await filePage.locator('#bar.figure-ready').waitFor({ timeout: 10000 });
     await filePage.waitForTimeout(200);
-    assert.equal(await filePage.locator('#figureRoot canvas').count(), 1, 'fast image switching must not mount stale renderers');
+    assert.equal(await filePage.locator('#figureRoot canvas').count(), 2, 'fast image switching must leave only the skeleton and reference layers');
     await filePage.close();
     if (errors.length) throw new Error('Browser errors: ' + errors.join(' | '));
     console.log(JSON.stringify({

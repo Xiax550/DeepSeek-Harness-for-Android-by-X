@@ -23,7 +23,14 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
       await page.locator('#bar.figure-ready').waitFor();
       const info = () => page.evaluate(() => BallUI.restInfo());
       async function record(label) {
-        const frame = await page.locator('#figureRoot canvas').evaluate(canvas => canvas.toDataURL());
+        const frame = await page.locator('#figureRoot canvas').evaluateAll(canvases => {
+          const copy = document.createElement('canvas'); copy.width = copy.height = 768;
+          const ctx = copy.getContext('2d');
+          for (const canvas of canvases) {
+            ctx.globalAlpha = Number(canvas.style.opacity || 1); ctx.drawImage(canvas, 0, 0);
+          }
+          return copy.toDataURL();
+        });
         if (!fallback) snapshots.push({ label, frame });
       }
       await page.clock.runFor(100);
@@ -41,14 +48,23 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
       assert.ok((await info()).frames - seatedFrames <= 5);
       await page.evaluate(() => BallUI.idleStage(2));
       await page.clock.runFor(500);
+      assert.equal(await page.evaluate(() => BallUI.characterInfo().expression), 'neutral');
+      assert.equal((await info()).yawning, false);
+      await page.clock.runFor(5500);
       assert.equal(await page.evaluate(() => BallUI.characterInfo().expression), 'sleepy');
-      await record('10 minutes: drowsy');
-      await page.clock.runFor(7500);
+      assert.equal((await info()).yawning, true);
+      assert.equal((await info()).amount, 1, 'yawn retains the approved seated pose');
+      assert.equal((await info()).sleep, 0, 'yawn happens before lying down');
+      assert.equal(await page.locator('#sleepMark').isVisible(), false);
+      await record('Seated yawn');
+      await page.clock.runFor(1500);
+      assert.equal((await info()).yawning, false);
+      assert.equal(await page.evaluate(() => BallUI.characterInfo().expression), 'sleepy', 'yawn face stays sleepy until lying down');
       await page.evaluate(() => BallUI.idleStage(3));
-      await page.clock.runFor(600);
+      await page.clock.runFor(1800);
       assert.ok((await info()).sleep > .1 && (await info()).sleep < .8);
       await record('Lying down: early');
-      await page.clock.runFor(600);
+      await page.clock.runFor(400);
       await record('Lying down: middle');
       const beforeReverse = await info();
       await page.evaluate(() => BallUI.pointer('down'));
@@ -65,7 +81,7 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
       await page.evaluate(() => BallUI.idleStage(2));
       await page.clock.runFor(8000);
       await page.evaluate(() => BallUI.idleStage(3));
-      await page.clock.runFor(1900);
+      await page.clock.runFor(3800);
       await record('Lying down: late');
       await page.clock.runFor(2000);
       assert.equal((await info()).sleep, 1);
@@ -132,13 +148,14 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
       }));
       const sleepFrames = (await info()).frames;
       await page.clock.runFor(4000);
-      assert.ok((await info()).frames - sleepFrames <= 5, 'sleep must remain low-frequency');
+      const breathingFrames = (await info()).frames - sleepFrames;
+      assert.ok(breathingFrames >= 28 && breathingFrames <= 42, 'sleep breathing uses at most 10 Hz, not a busy render loop');
       await page.evaluate(() => { dispatchEvent(new Event('pagehide')); dispatchEvent(new Event('pageshow')); });
       await page.clock.runFor(2200);
       assert.equal((await info()).stage, 3, 'page resume retains sleeping pose');
       for (const mode of ['voice', 'watch', 'task', 'click', 'drop', 'keyboard']) {
         await page.evaluate(() => BallUI.idleStage(3));
-        await page.clock.runFor(4000);
+        await page.clock.runFor(6000);
         await page.evaluate(mode => {
           if (mode === 'voice') BallUI.setListening(true);
           if (mode === 'watch') BallUI.watchActive(true);
@@ -155,7 +172,7 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
           await page.evaluate(() => BallUI.idleStage(3));
           assert.equal((await info()).stage, 0, mode + ' rejects sleep while busy');
         }
-        await page.clock.runFor(Math.max(4500, (await info()).wakeDurationMs + 100));
+        await page.clock.runFor(Math.max(6000, (await info()).wakeDurationMs + 100));
         assert.equal((await info()).sleep, 0);
         assert.equal((await info()).amount, 0);
         await page.evaluate(() => {
@@ -164,6 +181,16 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
       }
       await page.evaluate(() => { BallUI.idleStage(99); BallUI.idleStage(NaN); BallUI.idleStage(-1); });
       assert.equal((await info()).stage, 0, 'invalid stage cannot poison renderer');
+      await page.evaluate(() => BallUI.idleStage(1));
+      await page.clock.runFor(1800);
+      await page.evaluate(() => BallUI.idleStage(2));
+      await page.clock.runFor(6500);
+      assert.equal((await info()).yawning, true);
+      await page.evaluate(() => BallUI.setListening(true));
+      assert.equal((await info()).yawning, false, 'voice immediately cancels yawn');
+      await page.clock.runFor(9000);
+      assert.equal((await info()).stage, 0, 'cancelled yawn cannot put an active character to sleep');
+      await page.evaluate(() => BallUI.setListening(false));
       for (let i = 0; i < 15; i++) {
         await page.evaluate(() => BallUI.idleStage(3));
         await page.clock.runFor(100);
@@ -171,11 +198,11 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
         await page.clock.runFor(100);
       }
       await page.evaluate(() => BallUI.idleStage(3));
-      await page.clock.runFor(5000);
+      await page.clock.runFor(6000);
       const count = (await info()).frames;
       await page.clock.runFor(4000);
       const delta = (await info()).frames - count;
-      assert.ok(delta <= 5, 'rapid sleep toggles must not leak animation loops');
+      assert.ok(delta >= 28 && delta <= 42, 'rapid sleep toggles must not leak animation loops');
       stats.push({ renderer: fallback ? 'canvas-fallback' : 'webgl-mesh', lowPowerFrames: delta, wakeCases: 6 });
       await context.close();
     }
@@ -183,14 +210,14 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
     await reduced.goto(base + 'ball-web/composer.html?preview=300');
     await reduced.locator('#bar.figure-ready').waitFor();
     await reduced.evaluate(() => BallUI.idleStage(3));
-    await reduced.waitForTimeout(150);
+    await reduced.waitForFunction(() => BallUI.restInfo().sleep === 1, null, { timeout: 2000 });
     assert.equal(await reduced.evaluate(() => BallUI.restInfo().sleep), 1);
     assert.deepEqual(await reduced.locator('#sleepMark').evaluate(el => ({
       animations: el.getAnimations({ subtree: true }).length,
       visible: [...el.children].every(span => Number(getComputedStyle(span).opacity) === 1)
     })), { animations: 0, visible: true }, 'reduced motion retains static Z symbols without animation');
     await reduced.evaluate(() => BallUI.idleStage(0));
-    await reduced.waitForTimeout(150);
+    await reduced.waitForFunction(() => BallUI.restInfo().sleep === 0, null, { timeout: 2000 });
     assert.equal(await reduced.evaluate(() => BallUI.restInfo().sleep), 0);
     await reduced.close();
     const gallery = await browser.newPage({ viewport: { width: 1150, height: 900 } });

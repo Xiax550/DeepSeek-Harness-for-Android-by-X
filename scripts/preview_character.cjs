@@ -23,7 +23,7 @@ http.createServer((req, res) => {
     if (url.pathname.endsWith('/composer.html')) {
       const size = Number(url.searchParams.get('preview')) || 58;
       const bridge = `<script>window.DshBall={size:()=>${size},pad:()=>8,x:()=>0,y:()=>0,side:()=> 'left',image:()=>'',log:console.log,bubbleSize:(w,h)=>{if(frameElement){frameElement.width=w;frameElement.height=h}}};window.DshComposer={send:console.log,close:()=>BallUI.collapseDone(),watch:()=>{},log:console.log};</script>`;
-      content = content.toString().replace('<script src="./reference/figure.js">', bridge + '<script src="./reference/figure.js">');
+      content = content.toString().replace('<script src="./reference/model.js">', bridge + '<script src="./reference/model.js">');
     }
     res.end(content);
   } catch { res.writeHead(404).end('Not found'); }

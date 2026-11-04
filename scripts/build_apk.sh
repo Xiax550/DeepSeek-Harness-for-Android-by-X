@@ -180,6 +180,7 @@ python3 "$ROOT/scripts/pack_apk.py" "$BUILD/base.apk" "$BUILD/unsigned.apk" \
   "assets/licenses/undici-web-fetch-MIT.txt:$ROOT/LICENSES/undici-web-fetch-MIT.txt" \
   "assets/licenses/js-yaml-MIT.txt:$ROOT/LICENSES/js-yaml-MIT.txt" \
   "assets/licenses/argparse-Python-2.0.txt:$ROOT/LICENSES/argparse-Python-2.0.txt" \
+  "assets/licenses/three-js-MIT.txt:$ROOT/LICENSES/three-js-MIT.txt" \
   "assets/hot.zip:$BUILD/hot-assets/hot.zip"
 
 echo "== 6/7 keystore =="

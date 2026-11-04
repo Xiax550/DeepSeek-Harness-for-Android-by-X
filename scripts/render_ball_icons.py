@@ -9,7 +9,7 @@ resources — handed Xml.newPullParser() it throws
 
 and the ball silently falls back to the built-in whale. That is why the presets
 ship as PNGs (BitmapFactory.decodeFile, which works everywhere) while these SVGs
-stay the editable sources under assets/ball/.
+stay the editable source, next to assets/whale.svg.
 
 Usage: python3 scripts/render_ball_icons.py [size]
 """

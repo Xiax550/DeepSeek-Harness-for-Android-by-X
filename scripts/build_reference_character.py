@@ -10,32 +10,30 @@ from PIL import Image, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = [ROOT / 'assets/character/file_000000006b2081f59048643d46a512b2.png']
+SOURCES = [ROOT / 'assets/character/file_00000000b14481f586c88e3beafdd891.png']
 DEST = ROOT / 'payload/opt/dsh/android/ball-web/reference'
 # Coordinates are in the supplied setting sheets, not in the previous rig.
 VIEWS = {
-    'stand-front': (0, (79, 62, 470, 581), [(282, 153), (283, 290), (287, 374), (259, 484), (307, 540), (174, 362), (401, 381)]),
-    'stand-side': (0, (447, 61, 701, 581), [(550, 165), (550, 290), (560, 378), (550, 481), (545, 550), (653, 477)]),
-    'stand-back': (0, (687, 62, 958, 581), [(810, 159), (815, 285), (817, 382), (794, 483), (849, 548)]),
-    'sit-front': (0, (17, 642, 280, 939), [(143, 729), (139, 810), (140, 874), (91, 892), (194, 911)]),
-    'sit-side': (0, (272, 642, 493, 939), [(363, 725), (360, 809), (356, 865), (382, 899), (466, 905)]),
-    'sit-back': (0, (473, 642, 676, 939), [(565, 723), (560, 809), (561, 871), (609, 908)]),
-    'sleep-front': (0, (687, 700, 1052, 938), [(848, 763), (778, 845), (793, 912), (925, 862), (1007, 896)]),
+    'stand-front': (0, (98, 53, 455, 598), [(279, 150), (281, 265), (285, 337), (259, 478), (310, 549), (178, 376), (416, 449)]),
+    'sit-front': (0, (16, 657, 278, 937), [(141, 732), (144, 806), (127, 853), (163, 866), (112, 914), (229, 877)]),
+    'sleep-front': (0, (695, 717, 1057, 936), [(843, 758), (791, 835), (799, 913), (942, 843), (1021, 889)]),
 }
 EXPRESSION_POINTS = {
-    'happy': [(1270, 744), (1322, 742), (1298, 768)],
-    'surprised': [(1421, 746), (1472, 744), (1448, 769)],
-    'curious': [(1116, 906), (1164, 901), (1141, 922)],
-    'pout': [(1276, 904), (1326, 901), (1301, 924)],
-    'sleepy': [(1420, 905), (1475, 902), (1448, 925)],
-    'blink': [(1420, 905), (1475, 902), (1448, 925)],
+    'happy': [(1278, 744), (1325, 740), (1301, 763)],
+    'surprised': [(1432, 742), (1479, 741), (1456, 762)],
+    'curious': [(1115, 902), (1165, 898), (1140, 920)],
+    'pout': [(1277, 901), (1329, 899), (1303, 921)],
+    # The new sheet's last expression is a wink, not closed sleeping eyes.
+    # Reuse its happy expression's two closed eyes, retaining the neutral mouth.
+    'sleepy': [(1278, 744), (1325, 740), (1301, 763)],
+    'blink': [(1278, 744), (1325, 740), (1301, 763)],
 }
 
 
 def expressions(sheets, manifest):
-    targets = {'stand-front': [(252, 218), (319, 213), (287, 240)],
-               'sit-front': [(112, 777), (166, 772), (140, 801)],
-               'sleep-front': [(782, 884), (839, 871), (816, 897)]}
+    targets = {'stand-front': [(255, 190), (314, 184), (286, 209)],
+               'sit-front': [(115, 780), (164, 775), (141, 801)],
+               'sleep-front': [(785, 889), (840, 879), (814, 906)]}
     manifest['expressions'] = {}
     contact = Image.new('RGB', (1400, 975), '#62676b')
     draw = ImageDraw.Draw(contact)
@@ -53,7 +51,7 @@ def expressions(sheets, manifest):
             mask = np.zeros((base.height, base.width), np.uint8)
             for eye in target[:2]:
                 cv2.ellipse(mask, tuple(np.int32(eye)), (25, 19), -12, 0, 360, 255, -1)
-            if name != 'blink':
+            if name not in ('blink', 'sleepy'):
                 cv2.ellipse(mask, tuple(np.int32(target[2])), (17, 12), -12, 0, 360, 255, -1)
             mask = cv2.GaussianBlur(mask, (9, 9), 2)
             bounds = Image.fromarray(mask).getbbox()
@@ -89,29 +87,21 @@ def cutout(source, box, seeds, name):
         cv2.circle(mask, (x - x0, y - y0), 7, cv2.GC_FGD, -1)
     # Exclude nearby panels, decorative stars and sleep lettering, never old art.
     polygons = {
-        'stand-front': [(90, 310), (171, 198), (177, 67), (395, 63), (414, 195), (464, 333), (466, 460), (429, 506), (337, 497), (339, 580), (223, 580), (215, 498), (89, 483)],
-        'stand-side': [(454, 174), (500, 64), (605, 63), (662, 161), (701, 337), (700, 495), (606, 511), (592, 580), (505, 580), (490, 467), (454, 340)],
-        'stand-back': [(690, 320), (726, 183), (729, 64), (904, 64), (914, 215), (951, 345), (952, 494), (892, 514), (884, 580), (765, 580), (751, 510), (690, 493)],
-        'sleep-front': [(688, 769), (743, 763), (793, 766), (842, 701), (881, 741), (928, 753), (1003, 792), (1050, 854), (1050, 936), (688, 936)],
+        'stand-front': [(100, 288), (172, 176), (187, 57), (372, 56), (405, 212), (452, 289), (454, 394), (426, 479), (339, 501), (338, 597), (227, 597), (218, 500), (101, 434)],
+        'sit-front': [(18, 835), (47, 743), (50, 660), (220, 657), (236, 754), (276, 848), (277, 930), (18, 935)],
+        'sleep-front': [(696, 891), (703, 766), (770, 778), (814, 718), (860, 718), (907, 754), (967, 755), (1030, 802), (1056, 854), (1056, 935), (696, 935)],
     }
     if name in polygons:
         region = np.zeros(mask.shape, np.uint8)
         cv2.fillPoly(region, [np.array(polygons[name], np.int32) - np.array([x0, y0])], 1)
         mask[region == 0] = cv2.GC_BGD
     garments = {
-        'stand-front': [[(263, 270), (309, 268), (317, 310), (256, 310)],
-                        [(248, 332), (328, 332), (328, 376), (290, 387), (253, 374)],
-                        [(249, 453), (278, 453), (281, 514), (257, 516)],
-                        [(297, 454), (329, 454), (322, 514), (299, 514)]],
-        'stand-side': [[(514, 292), (554, 295), (559, 325), (514, 324)],
-                       [(502, 344), (531, 338), (537, 374), (495, 379)],
-                       [(532, 451), (565, 451), (581, 517), (557, 518)]],
-        'stand-back': [[(765, 344), (795, 344), (798, 375), (756, 392)],
-                       [(824, 345), (867, 342), (879, 387), (843, 376)],
-                       [(782, 455), (810, 455), (813, 514), (789, 514)],
-                       [(830, 455), (857, 455), (852, 514), (830, 514)]],
-        'sit-front': [[(113, 833), (132, 822), (141, 848), (137, 889), (111, 890), (104, 868)],
-                      [(148, 824), (166, 832), (176, 867), (172, 889), (148, 890)]],
+        'stand-front': [[(267, 260), (305, 260), (311, 286), (263, 286)],
+                        [(261, 316), (316, 316), (320, 347), (294, 362), (258, 349)],
+                        [(243, 443), (275, 443), (279, 538), (257, 541)],
+                        [(298, 443), (328, 443), (319, 538), (297, 538)]],
+        'sit-front': [[(113, 833), (130, 821), (141, 846), (136, 887), (111, 887), (106, 866)],
+                      [(149, 827), (165, 835), (173, 865), (169, 889), (146, 888)]],
     }
     for polygon in garments.get(name, []):
         cv2.fillPoly(mask, [np.array(polygon, np.int32) - np.array([x0, y0])], cv2.GC_FGD)
@@ -152,8 +142,7 @@ def validate():
             if patch.size != (x1 - x0, y1 - y0) or patch.mode != 'RGBA':
                 raise ValueError('Invalid expression patch: ' + pose + ' ' + name)
     for pose, points in {
-        'stand-front': [(280, 355), (263, 485), (311, 485)],
-        'stand-back': [(794, 485), (842, 485)],
+        'stand-front': [(280, 333), (263, 485), (311, 485)],
         'sit-front': [(120, 860), (160, 860)],
     }.items():
         image = Image.open(DEST / (pose + '.png'))
@@ -164,7 +153,7 @@ def validate():
     script = (DEST / 'model.js').read_text(encoding='utf-8')
     if json.loads(script.removeprefix('window.REFERENCE_MODEL=').strip().removesuffix(';')) != manifest:
         raise ValueError('Local-file model script does not match manifest')
-    print('7 views and expression patches verified: exact reference RGB/proportions, transparent alpha, no previous assets')
+    print('3 front poses and expression patches verified: exact reference RGB/proportions, transparent alpha, no previous assets')
 
 
 def main():
@@ -172,15 +161,16 @@ def main():
     DEST.mkdir(parents=True, exist_ok=True)
     sheets = [Image.open(path) for path in SOURCES]
     guide = Image.new('RGB', (1600, 700), '#b0b0b0')
-    guide.paste(sheets[0].crop((224, 180, 352, 253)).resize((520, 340)), (0, 0))
+    guide.paste(sheets[0].crop((230, 150, 340, 225)).resize((520, 340)), (0, 0))
     guide.paste(sheets[0].crop((1066, 640, 1518, 939)).resize((1000, 660)), (560, 0))
     guide.save(ROOT / 'build/reference-expression-guide.png')
-    manifest = {'version': 2, 'id': 'ciallo-reference-maid', 'sourceOnly': True,
+    manifest = {'version': 3, 'id': 'ciallo-reference-maid', 'sourceOnly': True,
+                'referenceDate': '2026-11-03', 'posePolicy': 'front-only; profiles are clothing references, not animation poses',
                 'previousAssets': [], 'sources': [], 'views': {}}
     for path in SOURCES:
         manifest['sources'].append({'name': path.name,
             'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
-    contact = Image.new('RGB', (1200, 1275), '#484c50')
+    contact = Image.new('RGB', (1200, 425), '#484c50')
     draw = ImageDraw.Draw(contact)
     for i, (name, (sheet_index, box, seeds)) in enumerate(VIEWS.items()):
         result = cutout(sheets[sheet_index], box, seeds, name)
@@ -193,8 +183,8 @@ def main():
                     'hips': .80 if seated else .52,
                     'head': [.50, .30 if seated else .22],
                     'ears': [[.29, .09], [.75, .09]]},
-            'scale': .455 if name.startswith('stand') else .575 if name.startswith('sit') else .55}
-        faces = {'stand-front': (287, 225), 'sit-front': (140, 785), 'sleep-front': (798, 872)}
+            'scale': .433 if name.startswith('stand') else .60 if name.startswith('sit') else .565}
+        faces = {'stand-front': (285, 192), 'sit-front': (140, 785), 'sleep-front': (812, 887)}
         if name in faces:
             fx, fy = faces[name]
             manifest['views'][name]['rig']['face'] = [(fx - box[0]) / result.width, (fy - box[1]) / result.height]
@@ -208,7 +198,7 @@ def main():
     (DEST / 'model.json').write_text(serialized + '\n', encoding='utf-8')
     (DEST / 'model.js').write_text('window.REFERENCE_MODEL=' + serialized + ';\n', encoding='utf-8')
     contact.save(ROOT / 'build/reference-character-cutouts.png')
-    print('Built 7 views from the new Ciallo reference, including prone sleep')
+    print('Built 3 front poses from the 2026-11-03 reference, including prone sleep')
     validate()
 
 

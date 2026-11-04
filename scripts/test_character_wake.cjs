@@ -29,26 +29,46 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
           BallUI.setListening(false); BallUI.watchActive(false); BallUI.bubbleDone();
           BallUI.collapse(); BallUI.collapseDone(); BallUI.idleStage(3);
         });
-        await page.clock.runFor(5000);
+        await page.clock.runFor(6000);
         assert.equal((await info()).sleep, 1);
       }
       await sleeping();
       await page.evaluate(() => {
+        const random = Math.random; Math.random = () => .1;
+        try {
         // Native idle reset can arrive before the pointer and input callbacks.
         BallUI.idleStage(0); BallUI.pointer('down'); BallUI.pointer('lift'); ComposerUI.open();
+        } finally { Math.random = random; }
       });
       assert.equal(await page.locator('#sleepMark').isVisible(), false);
       const duration = (await info()).wakeDurationMs;
+      assert.equal(duration, 10200, '2600ms look + 4400ms rise + optional 3200ms stretch');
       let elapsed = 0;
-      for (const [time, phase] of [[100, 'grumpy'], [1800, 'lifting'], [2800, 'lifting'],
-        [4400, 'rising'], [7200, 'stretching'], [9000, '']]) {
-        await page.clock.runFor(time - elapsed); elapsed = time;
+      let previousAmount = 1, previousSleep = 1;
+      for (const [time, phase] of [[100, 'looking'], [800, 'looking'], [1800, 'looking'],
+        [2800, 'rising'], [4200, 'rising'], [5500, 'rising'], [6500, 'rising'], [8100, 'rising'],
+        [8500, 'stretching'], [10500, 'stretching'], [11200, 'stretching'], [11600, '']]) {
+        const actualTime = Math.round(time <= 2600 ? time : time <= 8200 ? 2600 + (time - 2600) * 4400 / 5600 : time - 1200);
+        await page.clock.runFor(actualTime - elapsed); elapsed = actualTime;
         const current = await info();
         assert.equal(current.wakePhase, phase);
-        if (phase && phase !== 'stretching') assert.equal(current.expression, 'pout');
+        if (phase) assert.equal(current.referencePoseBlend.sit, 0,
+          'prone wake must never display or blend in the seated endpoint');
+        assert.ok(current.amount <= previousAmount + .001, 'wake posture must progress without jumping back');
+        assert.ok(current.sleep <= previousSleep + .001, 'sleep pose must release monotonically');
+        previousAmount = current.amount; previousSleep = current.sleep;
+        if (phase === 'looking') assert.equal(current.expression, 'pout');
+        if (phase === 'rising') assert.equal(current.expression, current.sleep > .05 ? 'pout' : 'neutral');
         if (time === 100) assert.ok(current.sleep > .99 && current.amount > .99);
-        if (time === 2800) assert.ok(current.sleep === 0 && current.amount === 1, 'sit before standing');
-        if (time === 4400) assert.ok(current.amount > .2 && current.amount < .8, 'slow rise has an intermediate pose');
+        if (time === 2800) assert.ok(current.sleep > .95 && current.amount > .99, 'start the rise gently from the current pose');
+        if (time === 5500) assert.ok(current.amount > .2 && current.amount < .8, 'faster rise retains an intermediate pose');
+        if (time === 6500) assert.ok(current.amount < .8 && current.sleep > 0,
+          'unfold the legs while pushing up, without a seated plateau');
+        if (phase === 'looking') {
+          assert.equal(current.amount, 1, 'look around before rising');
+          assert.equal(current.sleep, 1, 'do not lift the body before looking');
+          if (time !== 100) assert.ok(time === 800 ? current.gazeX > .1 : current.gazeX < -.1, 'look in both horizontal directions');
+        }
         if (phase === 'stretching') {
           assert.equal(current.amount, 0); assert.equal(current.sleep, 0);
           assert.equal(current.gesture, 'stretch');
@@ -57,14 +77,43 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
         if (!phase) {
           assert.equal(current.gesture, ''); assert.equal(current.expression, 'neutral');
         }
-        if (!fallback) frames.push({ label: phase || 'normal', image: await page.locator('#figureRoot canvas')
-          .evaluate(canvas => canvas.toDataURL()) });
-        if (time === 1800) {
+        if (!fallback) {
+          const label = !phase ? '恢复日常' : phase === 'looking' ? (current.gazeX > 0 ? '向一侧看' : '向另一侧看')
+            : phase === 'rising' ? (current.amount > .7 ? '开始起身' : '缓慢站立')
+            : current.gesture && current.gesture === 'stretch' ? '伸懒腰' : phase;
+          frames.push({ label, image: await page.locator('#figureRoot canvas').evaluateAll(canvases => {
+            const copy = document.createElement('canvas'); copy.width = copy.height = 768;
+            const ctx = copy.getContext('2d');
+            for (const canvas of canvases) {
+              ctx.globalAlpha = Number(canvas.style.opacity || 1); ctx.drawImage(canvas, 0, 0);
+            }
+            return copy.toDataURL();
+          }) });
+        }
+        if (time === 800) {
           await page.evaluate(() => { BallUI.pointer('down'); BallUI.pointer('lift'); ComposerUI.open(); });
           assert.equal((await info()).wakeDurationMs, duration, 'repeated input must not restart waking');
           assert.equal(await page.evaluate(() => BallUI.react('wave', 'happy')), false);
         }
       }
+      await sleeping();
+      await page.evaluate(() => {
+        const random = Math.random; Math.random = () => .8;
+        try { BallUI.pointer('drop'); } finally { Math.random = random; }
+      });
+      assert.equal((await info()).wakeDurationMs, 7000, '80% branch skips the entire stretch phase');
+      await page.clock.runFor(1800);
+      await page.evaluate(() => {
+        const random = Math.random; Math.random = () => .1;
+        try { BallUI.pointer('down'); BallUI.pointer('lift'); } finally { Math.random = random; }
+      });
+      assert.equal((await info()).wakeDurationMs, 7000, 'repeated input cannot reroll the wake decision');
+      await page.clock.runFor(5000);
+      assert.equal((await info()).wakePhase, 'rising');
+      await page.clock.runFor(600);
+      assert.equal((await info()).wakePhase, '');
+      assert.equal((await info()).gesture, '');
+      assert.equal((await info()).expression, 'neutral');
       for (const work of ['voice', 'watch', 'task']) {
         await sleeping();
         await page.evaluate(() => BallUI.pointer('down'));
@@ -77,17 +126,29 @@ const base = process.env.DHA_CHARACTER_PREVIEW || 'http://127.0.0.1:18767/';
         await page.clock.runFor(100);
         assert.equal((await info()).wakePhase, '', work + ' takes priority over decorative waking');
         assert.equal((await info()).expression, 'curious');
-        await page.clock.runFor(5000);
+        await page.clock.runFor(6000);
         assert.equal((await info()).sleep, 0); assert.equal((await info()).amount, 0);
         await page.evaluate(() => BallUI.pointer('lift'));
       }
+      await page.evaluate(() => { BallUI.setListening(false); BallUI.watchActive(false); BallUI.bubbleDone(); BallUI.idleStage(2); });
+      await page.clock.runFor(6000);
+      await page.evaluate(() => BallUI.pointer('drop'));
+      await page.clock.runFor(1800);
+      assert.equal((await info()).wakePhase, 'looking');
+      assert.equal((await info()).amount, 1);
+      assert.equal((await info()).sleep, 0);
+      await page.clock.runFor(1900);
+      assert.equal((await info()).wakePhase, 'rising');
+      assert.ok((await info()).amount < .98, 'already seated character starts rising without a redundant floor-recovery pause');
+      await page.clock.runFor(9000);
+      assert.equal((await info()).wakePhase, '');
       await sleeping();
       await page.evaluate(() => BallUI.pointer('drop'));
       await page.clock.runFor(1200);
       const before = await info();
       await page.evaluate(() => BallUI.idleStage(3));
       assert.ok(Math.abs((await info()).sleep - before.sleep) < .04, 'sleep reversal keeps the current pose');
-      await page.clock.runFor(5000);
+      await page.clock.runFor(6000);
       assert.equal((await info()).sleep, 1);
       await page.evaluate(() => { BallUI.pointer('drop'); dispatchEvent(new Event('pagehide')); });
       await page.clock.runFor(20000);

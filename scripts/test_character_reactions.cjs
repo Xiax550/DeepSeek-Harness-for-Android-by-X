@@ -26,7 +26,7 @@ const actions = ['earTwitch', 'nod', 'tilt', 'wave', 'stretch', 'sideLook'];
         if (state === 'rest') BallUI.resting(true);
       }, state);
       assert.equal(await page.evaluate(() => BallUI.react('wave')), false, state + ' blocks idle action');
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(300);
       assert.equal(await page.evaluate(() => BallUI.characterInfo().gesture), '');
       await page.evaluate(() => {
         BallUI.setListening(false); BallUI.watchActive(false); BallUI.bubbleDone(); BallUI.resting(false);
@@ -40,22 +40,13 @@ const actions = ['earTwitch', 'nod', 'tilt', 'wave', 'stretch', 'sideLook'];
       const root = document.createElementNS(svg.namespaceURI, 'g');
       svg.appendChild(root); document.body.appendChild(svg);
       const renderer = await ReferenceCharacter.create(new URL('./reference/', location.href));
-      const gl = root.ownerDocument.createElement('canvas').getContext('webgl');
-      const prototype = Object.getPrototypeOf(gl);
-      const upload = prototype.bufferData;
-      let invertedTriangles = 0;
-      prototype.bufferData = function (target, data, usage) {
-        if (data instanceof Float32Array && data.length === 19200) {
-          for (let i = 0; i < data.length; i += 12) {
-            const area = (data[i + 4] - data[i]) * (data[i + 9] - data[i + 1])
-              - (data[i + 5] - data[i + 1]) * (data[i + 8] - data[i]);
-            if (area <= 0) invertedTriangles++;
-          }
-        }
-        return upload.call(this, target, data, usage);
-      };
+      let invertedTriangles = 0, auditedTriangles = 0, rigidEdgeError = 0;
       function frame(label, options) {
         renderer.draw(root, null, { t: 0, sit: 0, expression: 'neutral', ...options });
+        const audit = renderer.auditGeometry();
+        invertedTriangles += audit.invertedHairTriangles;
+        auditedTriangles += audit.triangles;
+        rigidEdgeError = Math.max(rigidEdgeError, audit.rigidEdgeError);
         const source = root.querySelector('canvas');
         const copy = document.createElement('canvas'); copy.width = copy.height = 256;
         const ctx = copy.getContext('2d'); ctx.drawImage(source, 0, 0, 256, 256);
@@ -92,28 +83,34 @@ const actions = ['earTwitch', 'nod', 'tilt', 'wave', 'stretch', 'sideLook'];
         frame('cache', { sit: i / 20 });
         frame('cache', { sit: 1, sleep: i / 20, drowsy: true, expression: 'sleepy' });
       }
-      prototype.bufferData = upload;
       const textures = renderer.info().expressionTextureCount;
       // Keep just representative frames in the visual evidence.
       [...document.querySelectorAll('#gallery > div')].forEach(el => {
         if (/start|end|cache/.test(el.textContent)) el.remove();
       });
-      const extension = root.querySelector('canvas').getContext('webgl').getExtension('WEBGL_lose_context');
+      const canvas = root.querySelector('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      const extension = gl.getExtension('WEBGL_lose_context');
+      let restoredPixels = 0;
       if (extension) {
         extension.loseContext();
         await new Promise(r => setTimeout(r, 120));
         extension.restoreContext();
         await new Promise(r => setTimeout(r, 300));
-        frame('restored', { expression: 'happy' });
+        const pixels = frame('restored', { expression: 'happy' });
+        for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 100) restoredPixels++;
       }
       const restoredTextures = renderer.info().expressionTextureCount;
       renderer.dispose(); svg.remove();
-      return { actionChanges, expressionChanges, textures, restoredTextures, invertedTriangles };
+      return { actionChanges, expressionChanges, textures, restoredTextures, invertedTriangles, auditedTriangles, rigidEdgeError, restoredPixels };
     }, actions);
     for (const [name, changed] of Object.entries(metrics.actionChanges)) assert.ok(changed > 25, name + ' must visibly change rendered frame');
     for (const [name, changed] of Object.entries(metrics.expressionChanges)) assert.ok(changed > 10, name + ' must alter reference face');
     assert.ok(metrics.textures <= 2 && metrics.restoredTextures <= 2, 'expression texture cache must be bounded through context restore');
     assert.equal(metrics.invertedTriangles, 0, 'actions and rest/sleep transitions must not fold mesh triangles');
+    assert.ok(metrics.auditedTriangles > 10000);
+    assert.ok(metrics.rigidEdgeError < 1e-5, 'head and limbs cannot stretch');
+    assert.ok(metrics.restoredPixels > 1000, 'context restoration must actually render the character');
     await page.screenshot({ path: 'build/reference-reactions-gallery.png', fullPage: true });
     await page.close();
 
@@ -160,7 +157,7 @@ const actions = ['earTwitch', 'nod', 'tilt', 'wave', 'stretch', 'sideLook'];
       await mobile.goto(base + 'ball-web/composer.html?preview=300');
       await mobile.locator('#bar.figure-ready').waitFor();
       await mobile.evaluate(() => ComposerUI.open());
-      await mobile.waitForTimeout(150);
+      await mobile.waitForFunction(() => BallUI.characterInfo().expression === 'happy', null, { timeout: 2000 });
       const info = await mobile.evaluate(() => BallUI.characterInfo());
       assert.equal(info.gesture, '', 'reduced motion must suppress actions');
       assert.equal(info.expression, 'happy', 'expressions still work without animation/WebGL');

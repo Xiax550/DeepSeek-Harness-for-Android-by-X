@@ -13,6 +13,7 @@
 | `GPL-3.0.txt` | GNU components in the Ubuntu rootfs, including `bash.bashrc` |
 | `AGPL-3.0.txt` | Retained or historical Coopanion-derived code; not a license for the new reference artwork |
 | `dshmarket-MIT.txt` | Vendored `dshmarket@1.66.21` plugin market |
+| `three-js-MIT.txt` | Three.js r160 skeletal cutout renderer |
 
 The component-to-source inventory and known provenance gaps are maintained in
 `../THIRD_PARTY.md` and `../DEPENDENCIES.md`. This directory includes the license

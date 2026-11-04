@@ -1,0 +1,49 @@
+{
+  "basis": "unmodified-animation-source-hair",
+  "targetLab": [
+    52.51690611321525,
+    15.984580744200784,
+    -43.97704033069307
+  ],
+  "standingDeltaLab": [
+    -15.874969107111674,
+    4.708990576276101,
+    -2.2405101314409817
+  ],
+  "poseDeltaLab": {
+    "stand-front": [
+      -15.874969107111674,
+      4.708990576276101,
+      -2.2405101314409817
+    ],
+    "sit-front": [
+      -9.139307580792078,
+      2.9886569819175497,
+      -1.8049718369186607
+    ],
+    "sleep-front": [
+      -1.832771735773548,
+      -1.521607397080988,
+      2.800519367130189
+    ]
+  },
+  "files": [
+    "stand-front.png",
+    "stand-front-happy.png",
+    "stand-front-surprised.png",
+    "stand-front-curious.png",
+    "stand-front-pout.png",
+    "stand-front-sleepy.png",
+    "stand-front-blink.png",
+    "sit-front.png",
+    "sit-front-happy.png",
+    "sit-front-surprised.png",
+    "sit-front-curious.png",
+    "sit-front-pout.png",
+    "sit-front-sleepy.png",
+    "sit-front-blink.png",
+    "sleep-front.png",
+    "sleep-front-pout.png"
+  ],
+  "policy": "all-rest-pose-hair-and-expression-patches-only; alpha-and-excluded-colors-unchanged"
+}

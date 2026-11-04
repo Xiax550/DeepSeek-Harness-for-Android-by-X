@@ -3,10 +3,10 @@
 #
 # Needed because a payload update replaces the whole runtime: apt-installed tools and
 # everything under /tmp disappear, and this project's build toolchain lives in both
-# places (see docs/BUILD.md). Run this after installing a new APK on a device you build on.
+# places (HANDOFF §4.1d). Run this after installing a new APK on a device you build on.
 #
 # What it restores:
-#   apt     JDK 21 (javac/keytool), librsvg2-bin (optional ball-preset renderer), python3-pil (icons),
+#   apt     JDK 21 (javac/keytool), librsvg2-bin (icons), python3-pil (render_icon),
 #           qemu-user + the x86_64 cross loader/libgcc (aapt2 is an x86_64 binary),
 #           python3-yaml (workflow lint). gcc only if build_linkfix needs to rebuild
 #           (qemu-user-static is ~100MB more for no gain here).

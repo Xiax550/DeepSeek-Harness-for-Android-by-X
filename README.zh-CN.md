@@ -15,7 +15,7 @@
 
 - **应用名**：DHA（DeepSeek Harness Android）
 - **包名**：`com.dha.harness`
-- **版本**：1.2.58（versionCode 10271）
+- **版本**：1.2.59（versionCode 10275）
 - **底座**：基于 [itiswdwa/dsh-android](https://github.com/itiswdwa/dsh-android) v1.2.1 二次开发
 - **签名**：`CN=DHA`（独立正式签名，非 debug）
 - **上游与依赖**：包含 DeepSeek Harness、Shizuku、Vosk 等组件；当前玩偶使用独立参考图二维网格，历史 Coopanion 来源声明保留。依赖与许可见 [`DEPENDENCIES.md`](DEPENDENCIES.md) 和 [`THIRD_PARTY.md`](THIRD_PARTY.md)
@@ -72,10 +72,10 @@ PRoot 不建网络命名空间，所以沙箱里的服务对 WebView 就是 `127
 |---|---|
 | 换包名 | `dev.dsh.android` → `com.dha.harness`（含 Shizuku provider authority、所有 Java 包路径） |
 | 换应用名 | `DSH` → `DHA`；无障碍服务名 → `DHA 手机助手`；悬浮球全部文案同步 |
-| 换启动图 | 使用维护者授权的 `assets/dha-icon-source.png` 生成各密度、亮色/暗色、自适应与通知图标；悬浮球预设仍保留上游鲸鱼标识及来源声明 |
+| 换图标 | 使用维护者提供的 `assets/dha-icon-source.png` 生成各密度、亮色/暗色、自适应与通知图标，并移除旧鲸鱼图标引用 |
 | 换签名 | 生成独立 `CN=DHA` keystore，不再用上游的 `dshandroid` 口令 |
 | Windows 构建 | 上游只有 Linux 版 `build_apk.sh`；本工程新写 `scripts/build_apk.ps1`，在 Windows 上直接驱动 SDK 的 `aapt2.exe`/`javac`/`d8.jar`/`apksigner`，无需 Gradle、无需 WSL |
-| 图标生成 | 使用维护者授权的 `assets/dha-icon-source.png`，由 `scripts/make_icons.py` 生成启动图标与通知图标 |
+| 图标生成 | 上游 `render_icon.py` 依赖 `rsvg-convert`；本工程新写 `scripts/make_icons.py` 纯 Python 实现 |
 | **原生面板加粘贴按钮** | API Key 太长记不住，面板里给输入框加了「粘贴」按钮（`Panel.pasteApiKey`），一键读剪贴板填入 |
 | **修好更新源** | 上游的 update.json 地址指向它自己的仓库；改名时被误改成不存在的仓库，检查更新必然 404。现在默认留空（不跟随上游，避免提示安装签名不同、装不上的包），可在面板里填自己的 update.json |
 | **外观覆盖（实验，默认关闭）** | 深色 / 浅色 / 跟随系统 / 自定义背景图 / 主题色。见下 |

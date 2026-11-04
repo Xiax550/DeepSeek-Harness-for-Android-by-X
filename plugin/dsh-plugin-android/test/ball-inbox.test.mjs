@@ -15,7 +15,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const SOURCE = process.env.DSH_VT_SOURCE ?? new URL('../lib/client.js', import.meta.url).pathname;
+const SOURCE = process.env.DSH_VT_SOURCE ?? new URL('../lib/client.js', import.meta.url);
 const text = readFileSync(SOURCE, 'utf8');
 const BEGIN = '/* ==== @ball-inbox:begin';
 const END = '@ball-inbox:end ==== */';

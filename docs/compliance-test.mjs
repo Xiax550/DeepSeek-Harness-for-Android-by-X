@@ -18,7 +18,8 @@ for (const path of ['THIRD_PARTY.md', 'DEPENDENCIES.md', 'docs/BUILD-PROOT.md', 
 }
 
 const licenseFiles = readdirSync(join(root, 'LICENSES')).filter((name) => name.endsWith('.txt')).sort();
-assert.equal(licenseFiles.length, 10);
+assert.equal(licenseFiles.length, 11);
+assert.ok(licenseFiles.includes('three-js-MIT.txt'));
 const shellPacker = read('scripts/build_apk.sh');
 for (const name of licenseFiles) {
   assert.ok(shellPacker.includes(`LICENSES/${name}`), `Unix APK packer includes ${name}`);

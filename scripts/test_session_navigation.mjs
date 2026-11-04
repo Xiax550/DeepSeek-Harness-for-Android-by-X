@@ -33,6 +33,7 @@ function harness(UiSession) {
   const ui = new UiSession(ctx, sessions);
   function open(id) {
     const owner = { sessionId: id, ctx, session: { projections: { faceOf: () => ({}) } } };
+    rows[id] = { id };
     bindings.set(id, owner);
     const record = { live: true, binding: owner };
     return new ClientReference(id, record, () => { record.live = false; if (bindings.get(id) === owner) bindings.delete(id); });
@@ -49,6 +50,15 @@ assert.throws(() => baseline.ui.bindingSource(before), /is released/, 'reproduce
 const patched = repairSessionSource(original);
 assert.equal(repairSessionSource(patched), patched, 'patch is idempotent');
 assert.throws(() => repairSessionSource('unrecognized upstream'), /Unsupported/);
+const priorPatch = original.replace('const owner = reference.binding;', `// DHA_RELEASED_SESSION_RENDER_GUARD: React may render the previous reference during navigation teardown.
+                let owner;
+                try { owner = reference.binding; }
+                catch (error) {
+                    if (error instanceof Error && /^Session reference ".*" is released$/.test(error.message)) return this.absent;
+                    throw error;
+                }
+                return this.sourceFor(owner);`);
+assert.equal(repairSessionSource(priorPatch), patched, 'prior boot fix upgrades in place');
 const fixed = harness(load(patched));
 let previous;
 for (let i = 0; i < 100; i++) {
@@ -64,11 +74,15 @@ for (let i = 0; i < 100; i++) {
 const foreign = harness(load(patched)).open('foreign');
 assert.throws(() => fixed.ui.bindingSource(foreign), /not active/, 'foreign controller ownership checks remain intact');
 assert.throws(() => fixed.ui.bindingSource({ get binding() { throw new Error('unrelated failure'); } }), /unrelated failure/);
+const crossRealmReleased = { sessionId: 'chat-99', get binding() {
+  throw vm.runInNewContext('new Error("Session reference \\"chat-99\\" is released")');
+} };
+assert.equal(fixed.ui.bindingSource(crossRealmReleased), fixed.ui.absent, 'released cross-realm references fall back safely');
 const retained = fixed.open('same');
 const oldOwner = retained.binding;
 const replacement = fixed.open('same');
 assert.notEqual(oldOwner, replacement.binding);
-assert.throws(() => fixed.ui.bindingSource(retained), /not active/, 'stale but unreleased generations are not silently accepted');
+assert.equal(fixed.ui.bindingSource(retained), fixed.ui.absent, 'stale generation renders absence while its row remains');
 retained.release();
 assert.equal(fixed.ui.bindingSource(retained), fixed.ui.absent);
 assert.equal(fixed.ui.bindingSource(replacement).getSnapshot().key, 'same');
